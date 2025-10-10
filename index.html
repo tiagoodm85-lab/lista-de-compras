@@ -9,7 +9,7 @@
 <body>
 
     <div class="container">
-        <h1>Lista de Compras</h1>
+        <h1>Lista de Compras Compartilhada</h1>
 
         <div class="input-area">
             <input type="text" id="itemNameInput" placeholder="Nome do Item...">
@@ -17,7 +17,7 @@
         </div>
 
         <ul id="shoppingList">
-        </ul>
+            </ul>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -25,22 +25,19 @@
 
     <script>
         // =======================================================
-        // SEUS DADOS DE CONFIGURAÇÃO DO FIREBASE
+        // SUBSTITUA TUDO ABAIXO PELO SEU CÓDIGO firebaseConfig REAL!
         // =======================================================
-        // Removemos o <script type="module"> e mantivemos APENAS o objeto config
         const firebaseConfig = {
-            apiKey: "AIzaSyA84lNyeSw1yKXOfbHSRSzhya6JJq_Myk0",
-            authDomain: "lista-de-compras-6733e.firebaseapp.com",
-            projectId: "lista-de-compras-6733e",
-            storageBucket: "lista-de-compras-6733e.firebasestorage.app",
-            messagingSenderId: "1036767683127",
-            appId: "1:1036767683127:web:066b7a42110b9ad80c95b2",
-            // measurementId não é necessário para o Firestore básico
-        };
+            apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
+            authDomain: "lista-de-compras-399c7.firebaseapp.com",
+            projectId: "lista-de-compras-399c7",
+            storageBucket: "lista-de-compras-399c7.firebasestorage.app",
+            messagingSenderId: "255177223099",
+            appId: "1:255177223099:web:ce583b7412fe7dddceb29e"
+          };
 
-        // Inicializa o Firebase e o Firestore (Sintaxe do SDK V8)
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+          // Initialize Firebase
+          const app = initializeApp(firebaseConfig);
     </script>
     
     <script src="script.js"></script>
