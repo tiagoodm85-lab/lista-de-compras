@@ -130,3 +130,50 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
         shoppingListUI.appendChild(li);
     }
 });
+
+// =================================================================
+// Lógica de Reutilização de Itens Comprados (Checkboxes)
+// =================================================================
+
+const productHistoryUI = document.getElementById('productHistoryArea');
+
+// Função que é chamada ao marcar o checkbox
+const addFromHistory = (event, itemName) => {
+    // Verifica se o checkbox foi marcado
+    if (event.target.checked) {
+        // Usa o nome real do item para adicionar à lista atual
+        // Note que o nome já está em minúsculo, o que garante consistência.
+        SHOPPING_LIST_COLLECTION.add({
+            nome: itemName,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Opcional: Desmarca o checkbox após a adição (feedback visual)
+        event.target.checked = false; 
+    }
+};
+
+// Listener que monitora o histórico de produtos
+PRODUCTS_COLLECTION.orderBy('nome').onSnapshot((snapshot) => {
+    productHistoryUI.innerHTML = '';
+    
+    snapshot.forEach((doc) => {
+        const product = doc.data();
+        
+        // Cria a tag (checkbox + nome) para cada produto salvo
+        const tag = document.createElement('label');
+        tag.className = 'product-tag';
+        
+        // O nome do produto já está em minúsculo no banco, como ajustamos.
+        // Convertemos a primeira letra para maiúscula para exibição.
+        const displayName = product.nome.charAt(0).toUpperCase() + product.nome.slice(1);
+        
+        // Adiciona um checkbox e o nome
+        tag.innerHTML = `
+            <input type="checkbox" onclick="addFromHistory(event, '${product.nome}')">
+            ${displayName}
+        `;
+        
+        productHistoryUI.appendChild(tag);
+    });
+});
