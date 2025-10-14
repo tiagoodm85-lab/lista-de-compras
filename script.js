@@ -137,7 +137,6 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
 // =================================================================
 
 const productHistoryUI = document.getElementById('productHistoryArea');
-const addButton = document.getElementById('addButton'); // Certifique-se de que o botão está referenciado
 
 // [MANTENHA ESTA FUNÇÃO addFromHistory COMO ESTÁ NO CÓDIGO ANTERIOR]
 // ... (código da função addFromHistory, que é assíncrona) ...
