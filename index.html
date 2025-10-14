@@ -18,23 +18,25 @@
 
         <ul id="shoppingList">
             </ul>
+
+        <hr> <h2>Itens Comprados</h2>
+        <p class="history-info">Marque para adicionar à lista de cima.</p>
+        <div id="productHistoryArea">
+            </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebase/8.10.0/firebase-firestore.js"></script>
 
     <script>
-        // Use a CHAVE COMPLETA que você obteve do Firebase Console
+        // =======================================================
+        // SUA CONFIGURAÇÃO DO FIREBASE DEVE ESTAR AQUI!
+        // =======================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
-            authDomain: "lista-de-compras-399c7.firebaseapp.com",
-            projectId: "lista-de-compras-399c7",
-            storageBucket: "lista-de-compras-399c7.firebasestorage.app",
-            messagingSenderId: "255177223099",
-            appId: "1:255177223099:web:ce583b7412fe7dddceb29e"
+            // ... Mantenha sua CHAVE REAL AQUI
         };
 
-        // Inicializa o Firebase e o Firestore (db é definida aqui)
+        // Inicializa o Firebase e o Firestore
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
     </script>
