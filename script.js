@@ -136,19 +136,19 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
 // =================================================================
 
 const productHistoryUI = document.getElementById('productHistoryArea');
+const addButton = document.getElementById('addButton'); // Certifique-se de que o botão está referenciado
 
-// Função CORRIGIDA: Agora é assíncrona e para a propagação do evento
+// [MANTENHA ESTA FUNÇÃO addFromHistory COMO ESTÁ NO CÓDIGO ANTERIOR]
+// ... (código da função addFromHistory, que é assíncrona) ...
+
 const addFromHistory = async (event, itemName) => {
     
-    // CRUCIAL: Impede que o evento de clique se propague e dispare duas vezes
     event.stopPropagation();
     
     const checkbox = event.target;
     
-    // Garante que só processamos a adição se a caixa foi marcada
     if (checkbox.checked) {
         
-        // Desativa o checkbox para evitar cliques duplos enquanto o Firebase processa
         checkbox.disabled = true;
 
         try {
@@ -160,34 +160,44 @@ const addFromHistory = async (event, itemName) => {
         } catch (error) {
             console.error("Erro ao adicionar item do histórico:", error);
             alert("Erro ao adicionar item.");
-            // Se falhar, mantemos a caixa marcada e reativamos (ou desmarcamos)
-            checkbox.checked = true; 
+            checkbox.checked = true; // Mantém a caixa marcada se falhar
         } finally {
-             // O item foi adicionado. Desmarca o checkbox para um novo uso e reativa.
+             // Desmarca o checkbox e reativa
              checkbox.checked = false;
              checkbox.disabled = false;
         }
     }
 };
 
-// Listener que monitora o histórico de produtos
-PRODUCTS_COLLECTION.orderBy('nome').onSnapshot((snapshot) => {
-    productHistoryUI.innerHTML = '';
-    
-    snapshot.forEach((doc) => {
-        const product = doc.data();
+// NOVO CÓDIGO: Função para carregar o histórico de produtos (Lê apenas uma vez)
+const loadProductHistory = async () => {
+    try {
+        // Usa get() em vez de onSnapshot() para evitar listeners duplicados
+        const snapshot = await PRODUCTS_COLLECTION.orderBy('nome').get();
         
-        const tag = document.createElement('label');
-        tag.className = 'product-tag';
+        productHistoryUI.innerHTML = '';
         
-        const displayName = product.nome.charAt(0).toUpperCase() + product.nome.slice(1);
-        
-        // O onclick está no input e a função é assíncrona
-        tag.innerHTML = `
-            <input type="checkbox" onclick="addFromHistory(event, '${product.nome}')">
-            ${displayName}
-        `;
-        
-        productHistoryUI.appendChild(tag);
-    });
-});
+        snapshot.forEach((doc) => {
+            const product = doc.data();
+            
+            const tag = document.createElement('label');
+            tag.className = 'product-tag';
+            
+            const displayName = product.nome.charAt(0).toUpperCase() + product.nome.slice(1);
+            
+            tag.innerHTML = `
+                <input type="checkbox" onclick="addFromHistory(event, '${product.nome}')">
+                ${displayName}
+            `;
+            
+            productHistoryUI.appendChild(tag);
+        });
+
+    } catch (error) {
+        console.error("Erro ao carregar o histórico de produtos:", error);
+        productHistoryUI.innerHTML = `<p style="color: red;">Não foi possível carregar o histórico.</p>`;
+    }
+};
+
+// Chama a função para carregar o histórico quando o script for iniciado
+loadProductHistory();
