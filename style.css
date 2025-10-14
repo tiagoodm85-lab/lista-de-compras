@@ -92,3 +92,49 @@ h1 {
     cursor: pointer;
     margin-left: 10px;
 }
+/* --- Novo CSS para a Área de Histórico --- */
+
+hr {
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0));
+    margin: 25px 0;
+}
+
+h2 {
+    color: #007bff;
+    font-size: 1.3em;
+    margin-bottom: 10px;
+}
+
+.history-info {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+#productHistoryArea {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.product-tag {
+    background-color: #e9ecef;
+    padding: 8px 12px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    user-select: none; /* Impede seleção de texto no celular */
+}
+
+.product-tag:hover {
+    background-color: #dee2e6;
+}
+
+.product-tag input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
