@@ -4,7 +4,8 @@ const SHOPPING_LIST_COLLECTION = db.collection('lista_atual');
 
 const shoppingListUI = document.getElementById('shoppingList');
 const itemNameInput = document.getElementById('itemNameInput');
-const addButton = document.getElementById('addButton');
+const addButton = document.getElementById('addButton'); // <-- ESSA É A CHAVE
+
 
 // =================================================================
 // Lógica de Adicionar Item
@@ -16,7 +17,7 @@ const addItem = async () => {
 
     // Adiciona o item à Lista de Compras Atual
     await SHOPPING_LIST_COLLECTION.add({
-        nome: itemName,
+        nome: itemName.toLowerCase(),
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
