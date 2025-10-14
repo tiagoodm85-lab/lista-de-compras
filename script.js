@@ -96,16 +96,20 @@ const markAsBought = async (itemId, itemName) => {
 
 // Monitora a Lista de Compras Atual e atualiza a interface em tempo real
 SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
+    
+    // A LINHA MAIS IMPORTANTE: Limpa a lista completamente antes de reconstruir
     shoppingListUI.innerHTML = '';
+    
+    // Não precisamos do 'addedItems' Set() se o innerHTML = '' estiver aqui
     
     for (const doc of snapshot.docs) {
         const item = doc.data();
         const itemId = doc.id;
         
         // Normaliza o nome para a busca do histórico
-        const itemNameDisplay = item.nome; // Nome original para exibição
-        const itemNameNormalized = item.nome.toLowerCase();
-
+        const itemNameDisplay = item.nome; // Nome salvo (minúsculo) para exibição
+        const itemNameNormalized = item.nome; // Não precisa de toLowerCase() de novo
+        
         // 1. Busca o recorde de preço para exibir (informação histórica)
         const productQuery = await PRODUCTS_COLLECTION.where('nome', '==', itemNameNormalized).limit(1).get();
         let bestPriceHint = 'Novo item. Sem histórico de preço.';
@@ -122,7 +126,7 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
         li.className = 'shopping-item';
         li.innerHTML = `
             <div class="item-info">
-                <span class="item-name">${itemNameDisplay}</span>
+                <span class="item-name">${itemNameDisplay.charAt(0).toUpperCase() + itemNameDisplay.slice(1)}</span>
                 <span class="price-hint">${bestPriceHint}</span>
             </div>
             <button class="buy-button" onclick="markAsBought('${itemId}', '${itemNameDisplay}')">Comprei!</button>
