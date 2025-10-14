@@ -137,19 +137,36 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
 
 const productHistoryUI = document.getElementById('productHistoryArea');
 
-// Função que é chamada ao marcar o checkbox
-const addFromHistory = (event, itemName) => {
-    // Verifica se o checkbox foi marcado
-    if (event.target.checked) {
-        // Usa o nome real do item para adicionar à lista atual
-        // Note que o nome já está em minúsculo, o que garante consistência.
-        SHOPPING_LIST_COLLECTION.add({
-            nome: itemName,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+// Função CORRIGIDA: Agora é assíncrona e para a propagação do evento
+const addFromHistory = async (event, itemName) => {
+    
+    // CRUCIAL: Impede que o evento de clique se propague e dispare duas vezes
+    event.stopPropagation();
+    
+    const checkbox = event.target;
+    
+    // Garante que só processamos a adição se a caixa foi marcada
+    if (checkbox.checked) {
+        
+        // Desativa o checkbox para evitar cliques duplos enquanto o Firebase processa
+        checkbox.disabled = true;
 
-        // Opcional: Desmarca o checkbox após a adição (feedback visual)
-        event.target.checked = false; 
+        try {
+            await SHOPPING_LIST_COLLECTION.add({
+                nome: itemName,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+            
+        } catch (error) {
+            console.error("Erro ao adicionar item do histórico:", error);
+            alert("Erro ao adicionar item.");
+            // Se falhar, mantemos a caixa marcada e reativamos (ou desmarcamos)
+            checkbox.checked = true; 
+        } finally {
+             // O item foi adicionado. Desmarca o checkbox para um novo uso e reativa.
+             checkbox.checked = false;
+             checkbox.disabled = false;
+        }
     }
 };
 
@@ -160,15 +177,12 @@ PRODUCTS_COLLECTION.orderBy('nome').onSnapshot((snapshot) => {
     snapshot.forEach((doc) => {
         const product = doc.data();
         
-        // Cria a tag (checkbox + nome) para cada produto salvo
         const tag = document.createElement('label');
         tag.className = 'product-tag';
         
-        // O nome do produto já está em minúsculo no banco, como ajustamos.
-        // Convertemos a primeira letra para maiúscula para exibição.
         const displayName = product.nome.charAt(0).toUpperCase() + product.nome.slice(1);
         
-        // Adiciona um checkbox e o nome
+        // O onclick está no input e a função é assíncrona
         tag.innerHTML = `
             <input type="checkbox" onclick="addFromHistory(event, '${product.nome}')">
             ${displayName}
