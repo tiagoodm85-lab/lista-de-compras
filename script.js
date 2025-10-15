@@ -171,6 +171,20 @@ const productHistoryUI = document.getElementById('productHistoryArea');
 // [MANTENHA ESTA FUNÇÃO addFromHistory COMO ESTÁ NO CÓDIGO ANTERIOR]
 // ... (código da função addFromHistory, que é assíncrona) ...
 
+// Função para buscar a lista atual (é necessária para verificar se o item já existe)
+const getActiveShoppingList = async () => {
+    // Note que usamos get() em vez de onSnapshot para uma leitura única
+    const snapshot = await SHOPPING_LIST_COLLECTION.get();
+    
+    // Cria um Set para pesquisa rápida de nomes
+    const activeItems = new Set();
+    snapshot.forEach(doc => {
+        // Assume que o nome do item é armazenado em minúsculo na coleção lista_atual
+        activeItems.add(doc.data().nome);
+    });
+    return activeItems;
+}
+
 const addFromHistory = async (event, itemName) => {
     
     event.stopPropagation();
