@@ -4,7 +4,7 @@ const SHOPPING_LIST_COLLECTION = db.collection('lista_atual');
 const MARKETS_COLLECTION = db.collection('mercados');
 const shoppingListUI = document.getElementById('shoppingList');
 const itemNameInput = document.getElementById('itemNameInput');
-const addButton = document.getElementById('addButton'); // <-- ESSA É A CHAVE
+const addButton = document.getElementById('addButton'); 
 
 
 // =================================================================
@@ -126,15 +126,16 @@ const markAsBought = async (itemId, itemName) => {
 
 // Monitora a Lista de Compras Atual e atualiza a interface em tempo real
 SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
-    shoppingListUI.innerHTML = '';
+    // CORREÇÃO (Problema 2): Limpa a lista antes de reconstruir para evitar duplicação.
+    shoppingListUI.innerHTML = ''; 
     
     for (const doc of snapshot.docs) {
         const item = doc.data();
         const itemId = doc.id;
         
         // Normaliza o nome para a busca do histórico
-        const itemNameDisplay = item.nome; // Nome original para exibição
-        const itemNameNormalized = item.nome.toLowerCase();
+        const itemNameDisplay = item.nome.charAt(0).toUpperCase() + item.nome.slice(1); // Primeira letra maiúscula
+        const itemNameNormalized = item.nome; // Já está em minúsculo
 
         // 1. Busca o recorde de preço para exibir (informação histórica)
         const productQuery = await PRODUCTS_COLLECTION.where('nome', '==', itemNameNormalized).limit(1).get();
@@ -155,12 +156,17 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
                 <span class="item-name">${itemNameDisplay}</span>
                 <span class="price-hint">${bestPriceHint}</span>
             </div>
-            <button class="buy-button" onclick="markAsBought('${itemId}', '${itemNameDisplay}')">Comprei!</button>
+            <button class="buy-button" onclick="markAsBought('${itemId}', '${item.nome}')">Comprei!</button>
         `;
         
         shoppingListUI.appendChild(li);
     }
+    
+    // IMPORTANTE: Recarrega o histórico após a lista principal ser atualizada
+    // Isso garante que os checkboxes sejam desativados/ativados corretamente.
+    loadProductHistory(); 
 });
+
 
 // =================================================================
 // Lógica de Reutilização de Itens Comprados (Checkboxes)
@@ -168,23 +174,18 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
 
 const productHistoryUI = document.getElementById('productHistoryArea');
 
-// [MANTENHA ESTA FUNÇÃO addFromHistory COMO ESTÁ NO CÓDIGO ANTERIOR]
-// ... (código da função addFromHistory, que é assíncrona) ...
-
-// Função para buscar a lista atual (é necessária para verificar se o item já existe)
+// Função para buscar a lista atual (para verificar se o item já existe)
 const getActiveShoppingList = async () => {
-    // Note que usamos get() em vez de onSnapshot para uma leitura única
     const snapshot = await SHOPPING_LIST_COLLECTION.get();
     
-    // Cria um Set para pesquisa rápida de nomes
     const activeItems = new Set();
     snapshot.forEach(doc => {
-        // Assume que o nome do item é armazenado em minúsculo na coleção lista_atual
         activeItems.add(doc.data().nome);
     });
     return activeItems;
 }
 
+// Função CORRIGIDA (Problema 1): Lógica de Desativação Rápida
 const addFromHistory = async (event, itemName) => {
     
     event.stopPropagation();
@@ -192,7 +193,7 @@ const addFromHistory = async (event, itemName) => {
     const checkbox = event.target;
     
     if (checkbox.checked) {
-        
+        // Desativa o checkbox IMEDIATAMENTE antes de começar o trabalho no Firebase.
         checkbox.disabled = true;
 
         try {
@@ -204,21 +205,28 @@ const addFromHistory = async (event, itemName) => {
         } catch (error) {
             console.error("Erro ao adicionar item do histórico:", error);
             alert("Erro ao adicionar item.");
-            checkbox.checked = true; // Mantém a caixa marcada se falhar
+            // Se falhar, reativa o checkbox
+            checkbox.checked = true; 
+            checkbox.disabled = false;
         } finally {
-             // Desmarca o checkbox e reativa
-             checkbox.checked = false;
-             checkbox.disabled = false;
+            // Após a adição bem-sucedida, o Listener da Lista Principal (onSnapshot)
+            // será acionado e chamará o loadProductHistory(), que desativará o item.
+            // Apenas desmarca para limpar a UI.
+            checkbox.checked = false;
         }
+    } else {
+        // Se for desmarcado, reative.
+        checkbox.disabled = false;
     }
 };
 
-// NOVO CÓDIGO: Função para carregar o histórico de produtos
+
+// Função para carregar o histórico de produtos
 const loadProductHistory = async () => {
     try {
         const productSnapshot = await PRODUCTS_COLLECTION.orderBy('nome').get();
         // Obtém os nomes dos itens que JÁ estão na lista de compras
-        const activeItems = await getActiveShoppingList(); // <--- NOVA CHAMADA
+        const activeItems = await getActiveShoppingList(); 
         
         productHistoryUI.innerHTML = '';
         
@@ -258,4 +266,3 @@ const loadProductHistory = async () => {
 
 // ... (Chama a função para carregar o histórico quando o script for iniciado)
 loadProductHistory();
-
