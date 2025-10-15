@@ -25,6 +25,24 @@
             </div>
     </div>
 
+    <div id="buyModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Registro de Compra</h2>
+            <p id="modalItemName"></p>
+            <label for="priceInput">Preço Pago (R$):</label>
+            <input type="number" id="priceInput" step="0.01">
+            
+            <label for="marketSelect">Mercado:</label>
+            <select id="marketSelect">
+                </select>
+            
+            <label><input type="checkbox" id="promoCheckbox"> Item em promoção?</label>
+            
+            <button id="confirmBuy">Confirmar</button>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
