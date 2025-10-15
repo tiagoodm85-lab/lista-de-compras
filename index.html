@@ -26,25 +26,19 @@
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebase/8.10.0/firebase-firestore.js"></script>
 
     <script>
         // =======================================================
-        // SUA CONFIGURAÇÃO DO FIREBASE
+        // SUA CONFIGURAÇÃO DO FIREBASE DEVE ESTAR AQUI!
         // =======================================================
-        // Corrigido: Removido o 'c' extra de 'cconst'
         const firebaseConfig = {
-            apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
-            authDomain: "lista-de-compras-399c7.firebaseapp.com",
-            projectId: "lista-de-compras-399c7",
-            storageBucket: "lista-de-compras-399c7.firebasestorage.app",
-            messagingSenderId: "255177223099",
-            appId: "1:255177223099:web:ce583b7412fe7dddceb29e"
+            // ... Mantenha sua CHAVE REAL AQUI
         };
-        
-        // Corrigido: Usando a sintaxe V8 para inicialização e definindo 'db'
+
+        // Inicializa o Firebase e o Firestore
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(); // ESSA LINHA É CRUCIAL PARA O SEU script.js
+        const db = firebase.firestore();
     </script>
     
     <script src="script.js"></script>

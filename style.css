@@ -138,3 +138,65 @@ h2 {
     margin-right: 8px;
     cursor: pointer;
 }
+
+/* ========================================= */
+/* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
+/* ========================================= */
+
+/* Empilhamento de elementos na área de input */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    
+    .input-area {
+        flex-direction: column; /* Empilha input e botão */
+        gap: 10px;
+    }
+    
+    .input-area input[type="text"],
+    .input-area button {
+        width: 100%; /* Ocupa a largura total */
+        font-size: 1em; /* Tamanho de fonte padrão */
+        padding: 12px; /* Aumenta a área de toque */
+    }
+
+    /* Ajustes na lista principal */
+    .shopping-item {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 10px;
+        gap: 8px; /* Espaçamento entre os elementos empilhados */
+    }
+
+    .item-info {
+        width: 100%;
+    }
+
+    .item-name {
+        font-size: 1.1em; /* Nome do item mais visível */
+    }
+    
+    .price-hint {
+        font-size: 0.85em;
+        padding-top: 3px;
+    }
+    
+    .buy-button {
+        width: 100%; /* Botão "Comprei!" ocupa a largura total para fácil toque */
+        padding: 10px;
+        font-size: 1em;
+        margin-left: 0;
+    }
+
+    /* Área de histórico de produtos (checkboxes) */
+    .product-tag {
+        font-size: 0.9em;
+        padding: 10px 15px; /* Aumenta a área de toque do checkbox */
+    }
+}
