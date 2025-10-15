@@ -26,29 +26,24 @@
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebase/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
     <script>
         // =======================================================
         // SUA CONFIGURAÇÃO DO FIREBASE DEVE ESTAR AQUI!
         // =======================================================
-        // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
-      authDomain: "lista-de-compras-399c7.firebaseapp.com",
-      projectId: "lista-de-compras-399c7",
-      storageBucket: "lista-de-compras-399c7.firebasestorage.app",
-      messagingSenderId: "255177223099",
-      appId: "1:255177223099:web:ce583b7412fe7dddceb29e"
-    };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
+            authDomain: "lista-de-compras-399c7.firebaseapp.com",
+            projectId: "lista-de-compras-399c7",
+            storageBucket: "lista-de-compras-399c7.firebasestorage.app",
+            messagingSenderId: "255177223099",
+            appId: "1:255177223099:web:ce583b7412fe7dddceb29e"
+        };
+        
+        // Inicializa o Firebase e o Firestore. CRUCIAL para o script.js funcionar.
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
     </script>
     
     <script src="script.js"></script>
