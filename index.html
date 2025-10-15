@@ -32,13 +32,23 @@
         // =======================================================
         // SUA CONFIGURAÇÃO DO FIREBASE DEVE ESTAR AQUI!
         // =======================================================
-        const firebaseConfig = {
-            // ... Mantenha sua CHAVE REAL AQUI
-        };
+        // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-        // Inicializa o Firebase e o Firestore
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
+  authDomain: "lista-de-compras-399c7.firebaseapp.com",
+  projectId: "lista-de-compras-399c7",
+  storageBucket: "lista-de-compras-399c7.firebasestorage.app",
+  messagingSenderId: "255177223099",
+  appId: "1:255177223099:web:ce583b7412fe7dddceb29e"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
     </script>
     
     <script src="script.js"></script>
