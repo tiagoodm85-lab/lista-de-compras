@@ -1,11 +1,23 @@
 // =================================================================
-// 1. Variáveis Globais (Definidas Apenas Aqui)
+// CORREÇÃO DEFINITIVA CONTRA DUPLICAÇÃO LOCAL
+// Este bloco garante que o script inteiro só execute UMA VEZ.
+// Se ele for carregado duas vezes, ele irá abortar a segunda execução.
+// =================================================================
+if (window.isShoppingListListenerActive) {
+    console.warn("Script 'script.js' já configurou o listener. Abortando segunda execução.");
+    // É ESSENCIAL RETORNAR/SAIR AQUI
+    throw new Error("Duplicação de script bloqueada.");
+}
+window.isShoppingListListenerActive = true; 
+
+// =================================================================
+// 1. Variáveis e Coleções (O 'db' é global e funciona)
 // =================================================================
 
-// As coleções serão definidas após a garantia de que o 'db' do Firebase existe.
-let PRODUCTS_COLLECTION;
-let SHOPPING_LIST_COLLECTION;
-let MARKETS_COLLECTION;
+// O 'db' é definido no index.html e está disponível globalmente.
+const PRODUCTS_COLLECTION = db.collection('produtos');
+const SHOPPING_LIST_COLLECTION = db.collection('lista_atual');
+const MARKETS_COLLECTION = db.collection('mercados');
 
 // Referências de Elementos da UI
 const shoppingListUI = document.getElementById('shoppingList');
@@ -26,47 +38,8 @@ const closeButton = document.querySelector('.close-button');
 let currentItemId = null;
 let currentItemName = null;
 
-
 // =================================================================
-// 2. Função de Inicialização (Executada após o Firebase)
-// =================================================================
-
-// Esta função garante que todo o código dependente do Firebase só rode uma vez.
-const initializeApp = () => {
-    // Se 'db' não existir no escopo global (pode acontecer com alguns carregamentos)
-    if (typeof db === 'undefined' || typeof firebase === 'undefined') {
-        console.error("Firebase ou 'db' não estão definidos. Tentando novamente em 500ms.");
-        setTimeout(initializeApp, 500);
-        return;
-    }
-    
-    // Define as coleções do Firestore AGORA
-    PRODUCTS_COLLECTION = db.collection('produtos');
-    SHOPPING_LIST_COLLECTION = db.collection('lista_atual');
-    MARKETS_COLLECTION = db.collection('mercados');
-
-    // Associa os eventos de input
-    addButton.addEventListener('click', addItem);
-    itemNameInput.addEventListener('keyup', (event) => {
-        if (event.key === 'Enter') addItem();
-    });
-
-    // Associa os eventos da modal
-    confirmBuyButton.addEventListener('click', confirmBuyHandler);
-    closeButton.addEventListener('click', closeBuyModal);
-    window.addEventListener('click', (event) => {
-        if (event.target === buyModal) {
-            closeBuyModal();
-        }
-    });
-    
-    // Inicia o Listener ÚNICO para a lista de compras
-    setupShoppingListListener();
-};
-
-
-// =================================================================
-// 3. Funções Principais
+// 2. Lógica de Adicionar Item
 // =================================================================
 
 const addItem = async () => {
@@ -81,7 +54,11 @@ const addItem = async () => {
     itemNameInput.value = '';
 };
 
-// Abre a modal e popula a lista de mercados
+
+// =================================================================
+// 3. Funções de Modal e Compra
+// =================================================================
+
 const openBuyModal = async (itemId, itemName) => {
     currentItemId = itemId;
     currentItemName = itemName;
@@ -101,7 +78,6 @@ const openBuyModal = async (itemId, itemName) => {
     buyModal.style.display = 'block';
 };
 
-// Fecha a modal e limpa o estado
 const closeBuyModal = () => {
     buyModal.style.display = 'none';
     priceInput.value = '';
@@ -111,7 +87,6 @@ const closeBuyModal = () => {
     currentItemName = null;
 };
 
-// Lógica principal de confirmação de compra (Handler)
 const confirmBuyHandler = async () => {
     const pricePaid = parseFloat(priceInput.value);
     const market = marketSelect.value;
@@ -126,15 +101,11 @@ const confirmBuyHandler = async () => {
     closeBuyModal();
 };
 
-// Processa a compra, deleta o item e atualiza o histórico/recorde
 const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
     
     const itemNameNormalized = itemName.toLowerCase();
-
-    // 1. Remove o item da Lista de Compras Atual
     await SHOPPING_LIST_COLLECTION.doc(itemId).delete();
 
-    // 2. Busca/Cria o produto mestre
     const productQuery = await PRODUCTS_COLLECTION.where('nome', '==', itemNameNormalized).limit(1).get();
     
     let productId;
@@ -156,7 +127,6 @@ const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
         productId = newProductRef.id;
     }
 
-    // 3. Compara o preço e atualiza o Recorde
     if (pricePaid < bestPrice) {
         await PRODUCTS_COLLECTION.doc(productId).update({
             melhorPreco: pricePaid,
@@ -171,11 +141,13 @@ const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
     }
 };
 
-// Torna a função acessível no HTML (onclick)
 window.markAsBought = (itemId, itemName) => openBuyModal(itemId, itemName);
 
 
-// Busca a lista de itens ativos no momento
+// =================================================================
+// 4. Lógica de Histórico e Checkboxes
+// =================================================================
+
 const getActiveShoppingList = async () => {
     const snapshot = await SHOPPING_LIST_COLLECTION.get();
     const activeItems = new Set();
@@ -183,7 +155,6 @@ const getActiveShoppingList = async () => {
     return activeItems;
 };
 
-// Adiciona o item do histórico à lista de compras
 const addFromHistory = async (event, itemName) => {
     event.stopPropagation();
     const checkbox = event.target;
@@ -205,11 +176,8 @@ const addFromHistory = async (event, itemName) => {
     }
 };
 
-// Torna a função acessível no HTML (onclick)
 window.addFromHistory = addFromHistory;
 
-
-// Renderiza a área de histórico de produtos
 const loadProductHistory = async () => {
     try {
         const productSnapshot = await PRODUCTS_COLLECTION.orderBy('nome').get();
@@ -248,13 +216,13 @@ const loadProductHistory = async () => {
 
 
 // =================================================================
-// 4. Sincronização em Tempo Real (O Listener ÚNICO)
+// 5. Sincronização em Tempo Real (O Listener ÚNICO)
 // =================================================================
 
 const setupShoppingListListener = () => {
     SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
         
-        // CORREÇÃO: Limpa a lista antes de reconstruir.
+        // CHAVE DA CORREÇÃO: Limpa a lista antes de reconstruir.
         shoppingListUI.innerHTML = ''; 
         
         for (const doc of snapshot.docs) {
@@ -264,7 +232,6 @@ const setupShoppingListListener = () => {
             const itemNameDisplay = item.nome.charAt(0).toUpperCase() + item.nome.slice(1);
             const itemNameNormalized = item.nome; 
 
-            // Busca os dados do histórico para exibição
             const productQuery = await PRODUCTS_COLLECTION.where('nome', '==', itemNameNormalized).limit(1).get();
             let bestPriceHint = 'Novo item. Sem histórico de preço.';
 
@@ -289,7 +256,6 @@ const setupShoppingListListener = () => {
             shoppingListUI.appendChild(li);
         }
         
-        // Recarrega o histórico de produtos
         loadProductHistory(); 
 
     }, (error) => {
@@ -298,5 +264,22 @@ const setupShoppingListListener = () => {
     });
 };
 
-// Chama a inicialização no final para garantir que todos os elementos e funções existam
-initializeApp();
+// =================================================================
+// 6. Configuração dos Event Listeners Iniciais (Execução Final)
+// =================================================================
+
+addButton.addEventListener('click', addItem);
+itemNameInput.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') addItem();
+});
+
+confirmBuyButton.addEventListener('click', confirmBuyHandler);
+closeButton.addEventListener('click', closeBuyModal);
+window.addEventListener('click', (event) => {
+    if (event.target === buyModal) {
+        closeBuyModal();
+    }
+});
+
+// Inicia o Listener ÚNICO
+setupShoppingListListener();
