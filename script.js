@@ -3,7 +3,6 @@
 // =================================================================
 
 // Variável que irá armazenar a função de CANCELAMENTO do listener do Firebase.
-// Esta é a CHAVE da correção.
 let unsubscribeShoppingList = null; 
 
 // O 'db' é definido no index.html e está disponível globalmente.
@@ -48,7 +47,7 @@ const addItem = async () => {
 
 
 // =================================================================
-// 3. Funções de Modal e Compra
+// 3. Funções de Modal e Compra (IDÊNTICO)
 // =================================================================
 
 const openBuyModal = async (itemId, itemName) => {
@@ -137,7 +136,7 @@ window.markAsBought = (itemId, itemName) => openBuyModal(itemId, itemName);
 
 
 // =================================================================
-// 4. Lógica de Histórico e Checkboxes
+// 4. Lógica de Histórico e Checkboxes (IDÊNTICO)
 // =================================================================
 
 const getActiveShoppingList = async () => {
@@ -208,19 +207,18 @@ const loadProductHistory = async () => {
 
 
 // =================================================================
-// 5. Sincronização em Tempo Real (O Listener ÚNICO E REFORÇADO)
+// 5. Sincronização em Tempo Real (O Listener ÚNICO)
 // =================================================================
 
 const setupShoppingListListener = () => {
     
-    // 💥 CHAVE DA CORREÇÃO 💥
-    // Se a função de cancelamento já existe, chamamos ela para parar o listener antigo.
+    // Cancela o listener antigo se ele existir, garantindo 1 listener de LEITURA
     if (unsubscribeShoppingList) {
         unsubscribeShoppingList();
         console.log("Listener antigo do Firestore cancelado com sucesso.");
     }
     
-    // Criamos o novo listener e ARMAZENAMOS A FUNÇÃO DE CANCELAMENTO.
+    // Cria o novo listener e ARMAZENA A FUNÇÃO DE CANCELAMENTO.
     unsubscribeShoppingList = SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
         
         // CORREÇÃO: Limpa a lista antes de reconstruir.
@@ -266,21 +264,33 @@ const setupShoppingListListener = () => {
 };
 
 // =================================================================
-// 6. Configuração dos Event Listeners Iniciais (Execução Final)
+// 6. Configuração dos Event Listeners Iniciais (BLOCO DE EXECUÇÃO ÚNICA)
 // =================================================================
 
-addButton.addEventListener('click', addItem);
-itemNameInput.addEventListener('keyup', (event) => {
-    if (event.key === 'Enter') addItem();
-});
+// Variável de segurança global para garantir que esta seção rode APENAS UMA VEZ.
+if (!window.isShoppingListInitialized) {
+    
+    // 1. Configura os Event Listeners (para não duplicar a ação de adicionar)
+    addButton.addEventListener('click', addItem);
+    itemNameInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') addItem();
+    });
 
-confirmBuyButton.addEventListener('click', confirmBuyHandler);
-closeButton.addEventListener('click', closeBuyModal);
-window.addEventListener('click', (event) => {
-    if (event.target === buyModal) {
-        closeBuyModal();
-    }
-});
+    confirmBuyButton.addEventListener('click', confirmBuyHandler);
+    closeButton.addEventListener('click', closeBuyModal);
+    window.addEventListener('click', (event) => {
+        if (event.target === buyModal) {
+            closeBuyModal();
+        }
+    });
 
-// Inicia o Listener ÚNICO
-setupShoppingListListener();
+    // 2. Inicia o Listener (que, por sua vez, cancela o anterior caso exista)
+    setupShoppingListListener();
+
+    // 3. Define a flag para impedir futuras execuções deste bloco.
+    window.isShoppingListInitialized = true;
+    
+} else {
+    // Caso o script rode novamente, esta mensagem aparecerá no console, mas nada será duplicado.
+    console.warn("Inicialização do script bloqueada: já executado.");
+}
