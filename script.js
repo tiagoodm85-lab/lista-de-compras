@@ -17,6 +17,7 @@ const closeButton = document.querySelector('.close-button');
 
 let currentItemId = null;
 let currentItemName = null;
+let isListenerActive = false; // NOVA VARIÁVEL GLOBAL
 
 
 // =================================================================
@@ -188,7 +189,8 @@ SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
     
     loadProductHistory(); 
 });
-
+isListenerActive = true; // Define como ativo apos a primeira execucao
+}
 
 // =================================================================
 // Lógica de Reutilização de Itens Comprados (Checkboxes)
