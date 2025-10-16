@@ -271,5 +271,3 @@ const loadProductHistory = async () => {
         productHistoryUI.innerHTML = `<p style="color: red;">Não foi possível carregar o histórico.</p>`;
     }
 };
-
-loadProductHistory();
