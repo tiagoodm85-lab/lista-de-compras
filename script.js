@@ -1,18 +1,10 @@
 // =================================================================
-// CORREÇÃO DEFINITIVA CONTRA DUPLICAÇÃO LOCAL
-// Este bloco garante que o script inteiro só execute UMA VEZ.
-// Se ele for carregado duas vezes, ele irá abortar a segunda execução.
+// 1. Variáveis Globais, Incluindo o Unsubscriber
 // =================================================================
-if (window.isShoppingListListenerActive) {
-    console.warn("Script 'script.js' já configurou o listener. Abortando segunda execução.");
-    // É ESSENCIAL RETORNAR/SAIR AQUI
-    throw new Error("Duplicação de script bloqueada.");
-}
-window.isShoppingListListenerActive = true; 
 
-// =================================================================
-// 1. Variáveis e Coleções (O 'db' é global e funciona)
-// =================================================================
+// Variável que irá armazenar a função de CANCELAMENTO do listener do Firebase.
+// Esta é a CHAVE da correção.
+let unsubscribeShoppingList = null; 
 
 // O 'db' é definido no index.html e está disponível globalmente.
 const PRODUCTS_COLLECTION = db.collection('produtos');
@@ -216,13 +208,22 @@ const loadProductHistory = async () => {
 
 
 // =================================================================
-// 5. Sincronização em Tempo Real (O Listener ÚNICO)
+// 5. Sincronização em Tempo Real (O Listener ÚNICO E REFORÇADO)
 // =================================================================
 
 const setupShoppingListListener = () => {
-    SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
+    
+    // 💥 CHAVE DA CORREÇÃO 💥
+    // Se a função de cancelamento já existe, chamamos ela para parar o listener antigo.
+    if (unsubscribeShoppingList) {
+        unsubscribeShoppingList();
+        console.log("Listener antigo do Firestore cancelado com sucesso.");
+    }
+    
+    // Criamos o novo listener e ARMAZENAMOS A FUNÇÃO DE CANCELAMENTO.
+    unsubscribeShoppingList = SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
         
-        // CHAVE DA CORREÇÃO: Limpa a lista antes de reconstruir.
+        // CORREÇÃO: Limpa a lista antes de reconstruir.
         shoppingListUI.innerHTML = ''; 
         
         for (const doc of snapshot.docs) {
