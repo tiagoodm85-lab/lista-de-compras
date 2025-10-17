@@ -3,8 +3,8 @@
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import { 
     PRODUCTS_COLLECTION, SHOPPING_LIST_COLLECTION, MARKETS_COLLECTION,
-    onSnapshot, query, orderBy, where, addDoc, updateDoc, deleteDoc, 
-    serverTimestamp, getDocs
+    onSnapshot, query, orderBy, where, limit, // <--- AGORA INCLUINDO 'limit'
+    addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs
 } from './firebase.js';
 
 // =================================================================
