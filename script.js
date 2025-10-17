@@ -1,22 +1,21 @@
+// script.js (O novo core da aplicação)
+
+// 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
+import { 
+    PRODUCTS_COLLECTION, SHOPPING_LIST_COLLECTION, MARKETS_COLLECTION,
+    onSnapshot, query, orderBy, where, addDoc, updateDoc, deleteDoc, 
+    serverTimestamp, getDocs
+} from './firebase.js';
+
 // =================================================================
-// 1. Variáveis Globais, Incluindo o Unsubscriber
+// Variáveis e Referências de Elementos (SEM MUDANÇA)
 // =================================================================
 
-// Variável que irá armazenar a função de CANCELAMENTO do listener do Firebase.
-let unsubscribeShoppingList = null; 
-
-// O 'db' é definido no index.html e está disponível globalmente.
-const PRODUCTS_COLLECTION = db.collection('produtos');
-const SHOPPING_LIST_COLLECTION = db.collection('lista_atual');
-const MARKETS_COLLECTION = db.collection('mercados');
-
-// Referências de Elementos da UI
 const shoppingListUI = document.getElementById('shoppingList');
 const itemNameInput = document.getElementById('itemNameInput');
 const addButton = document.getElementById('addButton'); 
 const productHistoryUI = document.getElementById('productHistoryArea');
 
-// Referências aos elementos da janela modal
 const buyModal = document.getElementById('buyModal');
 const modalItemName = document.getElementById('modalItemName');
 const priceInput = document.getElementById('priceInput');
@@ -25,29 +24,82 @@ const promoCheckbox = document.getElementById('promoCheckbox');
 const confirmBuyButton = document.getElementById('confirmBuy');
 const closeButton = document.querySelector('.close-button');
 
-// Variáveis de estado da modal
 let currentItemId = null;
 let currentItemName = null;
+let unsubscribeShoppingList = null; // Listener de cancelamento (Ainda necessário por segurança)
 
 // =================================================================
-// 2. Lógica de Adicionar Item
+// Funções de Ajuda (DOM Manipulation)
+// =================================================================
+
+const formatCurrency = (value) => value === Infinity ? 'N/A' : `R$ ${value.toFixed(2)}`;
+
+const createListItem = (itemId, itemName, priceHint, marketHint, isPromo) => {
+    const li = document.createElement('li');
+    li.id = `item-${itemId}`; // Usado para remoção/modificação rápida
+    li.className = 'shopping-item';
+    
+    const bestPriceHint = priceHint === Infinity 
+        ? 'Novo item. Sem histórico de preço.'
+        : `Melhor Preço: ${formatCurrency(priceHint)} em ${marketHint}${isPromo ? ' (PROMO)' : ''}`;
+
+    const itemNameDisplay = itemName.charAt(0).toUpperCase() + itemName.slice(1);
+
+    li.innerHTML = `
+        <div class="item-info">
+            <span class="item-name">${itemNameDisplay}</span>
+            <span class="price-hint">${bestPriceHint}</span>
+        </div>
+        <button class="buy-button" onclick="window.markAsBought('${itemId}', '${itemName}')">Comprei!</button>
+    `;
+    return li;
+};
+
+// =================================================================
+// 2. Lógica de Adicionar Item (COM DENORMALIZAÇÃO)
 // =================================================================
 
 const addItem = async () => {
-    const itemName = itemNameInput.value.trim();
+    const itemName = itemNameInput.value.trim().toLowerCase();
     if (!itemName) return;
 
-    await SHOPPING_LIST_COLLECTION.add({
-        nome: itemName.toLowerCase(),
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+    itemNameInput.disabled = true;
 
-    itemNameInput.value = '';
+    try {
+        // 💥 Melhoria: Consulta de histórico ANTES de adicionar (Denormalização)
+        const productQuery = await getDocs(query(PRODUCTS_COLLECTION, where('nome', '==', itemName), orderBy('nome'), limit(1)));
+        
+        let bestPrice = Infinity;
+        let market = 'N/A';
+        let isPromo = false;
+
+        if (!productQuery.empty) {
+            const productData = productQuery.docs[0].data();
+            bestPrice = productData.melhorPreco || Infinity;
+            market = productData.melhorMercado || 'N/A';
+            isPromo = productData.emPromocao || false;
+        }
+
+        // 💥 Melhoria: Adiciona o melhor preço à lista atual (dados denormalizados)
+        await addDoc(SHOPPING_LIST_COLLECTION, {
+            nome: itemName,
+            timestamp: serverTimestamp(),
+            melhorPreco: bestPrice,
+            melhorMercado: market,
+            emPromocao: isPromo
+        });
+
+        itemNameInput.value = '';
+    } catch (error) {
+        console.error("Erro ao adicionar item:", error);
+        alert("Erro ao adicionar item.");
+    } finally {
+        itemNameInput.disabled = false;
+    }
 };
 
-
 // =================================================================
-// 3. Funções de Modal e Compra (IDÊNTICO)
+// 3. Funções de Modal e Compra (Lógica de Preço V9)
 // =================================================================
 
 const openBuyModal = async (itemId, itemName) => {
@@ -56,7 +108,9 @@ const openBuyModal = async (itemId, itemName) => {
     modalItemName.textContent = `Registrar compra de: ${itemName.charAt(0).toUpperCase() + itemName.slice(1)}`;
     
     marketSelect.innerHTML = '<option value="" selected disabled hidden>Carregando mercados...</option>';
-    const marketsSnapshot = await MARKETS_COLLECTION.orderBy('nome').get();
+    
+    // Melhoria: Assincronia e uso de getDocs (v9)
+    const marketsSnapshot = await getDocs(query(MARKETS_COLLECTION, orderBy('nome')));
     
     marketSelect.innerHTML = '<option value="" selected disabled hidden>Selecione um mercado</option>';
     marketsSnapshot.forEach(doc => {
@@ -93,23 +147,32 @@ const confirmBuyHandler = async () => {
 };
 
 const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
-    
     const itemNameNormalized = itemName.toLowerCase();
-    await SHOPPING_LIST_COLLECTION.doc(itemId).delete();
 
-    const productQuery = await PRODUCTS_COLLECTION.where('nome', '==', itemNameNormalized).limit(1).get();
+    // 💥 Melhoria: Deleta item da lista atual (v9)
+    await deleteDoc(doc(SHOPPING_LIST_COLLECTION, itemId));
+
+    // Busca o produto no histórico
+    const productQuery = await getDocs(query(PRODUCTS_COLLECTION, where('nome', '==', itemNameNormalized), limit(1)));
     
     let productId;
     let bestPrice = Infinity;
     let melhorMercadoExistente = 'N/A';
+    const productRef = productQuery.empty 
+        ? null 
+        : productQuery.docs[0].ref; // Referência do documento (v9)
 
-    if (!productQuery.empty) {
-        const doc = productQuery.docs[0];
-        productId = doc.id;
-        bestPrice = doc.data().melhorPreco || Infinity;
-        melhorMercadoExistente = doc.data().melhorMercado;
+    if (productRef) {
+        productId = productQuery.docs[0].id;
+        bestPrice = productQuery.docs[0].data().melhorPreco || Infinity;
+        melhorMercadoExistente = productQuery.docs[0].data().melhorMercado;
+
+        // Atualiza a lista ATUAL para mostrar a dica de preço ATUALIZADA (para outros usuários)
+        // Isso é opcional, mas garante que todos os clientes vejam o novo preço imediatamente.
+        // await updateDoc(doc(SHOPPING_LIST_COLLECTION, itemId), { melhorPreco: bestPrice, melhorMercado: melhorMercadoExistente });
     } else {
-        const newProductRef = await PRODUCTS_COLLECTION.add({
+        // 💥 Melhoria: Cria o produto se não existir (v9)
+        const newProductRef = await addDoc(PRODUCTS_COLLECTION, {
             nome: itemNameNormalized,
             melhorPreco: Infinity, 
             melhorMercado: '',
@@ -119,28 +182,31 @@ const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
     }
 
     if (pricePaid < bestPrice) {
-        await PRODUCTS_COLLECTION.doc(productId).update({
+        // 💥 Melhoria: Atualiza o melhor preço no histórico (v9)
+        await updateDoc(doc(PRODUCTS_COLLECTION, productId), {
             melhorPreco: pricePaid,
             melhorMercado: market,
             emPromocao: isPromo,
-            ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            ultimaAtualizacao: serverTimestamp()
         });
-        alert(`NOVO RECORDE! O melhor preço de ${itemName.charAt(0).toUpperCase() + itemName.slice(1)} agora é R$ ${pricePaid.toFixed(2)} em ${market}.`);
+        alert(`NOVO RECORDE! O melhor preço de ${itemName.charAt(0).toUpperCase() + itemName.slice(1)} agora é ${formatCurrency(pricePaid)} em ${market}.`);
     } else {
         const precoExistente = bestPrice === Infinity ? 'N/A' : bestPrice.toFixed(2);
-        alert(`Compra registrada, mas o melhor preço continua sendo R$ ${precoExistente} em ${melhorMercadoExistente}.`);
+        alert(`Compra registrada, mas o melhor preço continua sendo ${precoExistente} em ${melhorMercadoExistente}.`);
     }
 };
 
 window.markAsBought = (itemId, itemName) => openBuyModal(itemId, itemName);
 
+// =================================================================
+// 4. Lógica de Histórico e Checkboxes (V9)
+// =================================================================
 
-// =================================================================
-// 4. Lógica de Histórico e Checkboxes (IDÊNTICO)
-// =================================================================
+// (O resto das funções de histórico e checkbox permanecem idênticas, 
+// apenas com a sintaxe V9 aplicada internamente)
 
 const getActiveShoppingList = async () => {
-    const snapshot = await SHOPPING_LIST_COLLECTION.get();
+    const snapshot = await getDocs(SHOPPING_LIST_COLLECTION);
     const activeItems = new Set();
     snapshot.forEach(doc => { activeItems.add(doc.data().nome); });
     return activeItems;
@@ -154,15 +220,35 @@ const addFromHistory = async (event, itemName) => {
         checkbox.disabled = true;
 
         try {
-            await SHOPPING_LIST_COLLECTION.add({
+            // Consulta de histórico para denormalizar (igual ao addItem)
+            const productQuery = await getDocs(query(PRODUCTS_COLLECTION, where('nome', '==', itemName), limit(1)));
+            
+            let bestPrice = Infinity;
+            let market = 'N/A';
+            let isPromo = false;
+
+            if (!productQuery.empty) {
+                const productData = productQuery.docs[0].data();
+                bestPrice = productData.melhorPreco || Infinity;
+                market = productData.melhorMercado || 'N/A';
+                isPromo = productData.emPromocao || false;
+            }
+
+            // 💥 Melhoria: Adiciona item denormalizado (V9)
+            await addDoc(SHOPPING_LIST_COLLECTION, {
                 nome: itemName,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                timestamp: serverTimestamp(),
+                melhorPreco: bestPrice,
+                melhorMercado: market,
+                emPromocao: isPromo
             });
+
         } catch (error) {
             console.error("Erro ao adicionar item do histórico:", error);
             alert("Erro ao adicionar item.");
         } finally {
             checkbox.checked = false;
+            checkbox.disabled = false;
         }
     }
 };
@@ -171,7 +257,8 @@ window.addFromHistory = addFromHistory;
 
 const loadProductHistory = async () => {
     try {
-        const productSnapshot = await PRODUCTS_COLLECTION.orderBy('nome').get();
+        // (V9)
+        const productSnapshot = await getDocs(query(PRODUCTS_COLLECTION, orderBy('nome')));
         const activeItems = await getActiveShoppingList(); 
         
         productHistoryUI.innerHTML = '';
@@ -205,56 +292,53 @@ const loadProductHistory = async () => {
     }
 };
 
-
 // =================================================================
-// 5. Sincronização em Tempo Real (O Listener ÚNICO)
+// 5. Sincronização em Tempo Real (COM DOCCHANGES)
 // =================================================================
 
 const setupShoppingListListener = () => {
     
-    // Cancela o listener antigo se ele existir, garantindo 1 listener de LEITURA
     if (unsubscribeShoppingList) {
         unsubscribeShoppingList();
-        console.log("Listener antigo do Firestore cancelado com sucesso.");
     }
     
-    // Cria o novo listener e ARMAZENA A FUNÇÃO DE CANCELAMENTO.
-    unsubscribeShoppingList = SHOPPING_LIST_COLLECTION.orderBy('timestamp').onSnapshot(async (snapshot) => {
-        
-        // CORREÇÃO: Limpa a lista antes de reconstruir.
-        shoppingListUI.innerHTML = ''; 
-        
-        for (const doc of snapshot.docs) {
-            const item = doc.data();
-            const itemId = doc.id;
-            
-            const itemNameDisplay = item.nome.charAt(0).toUpperCase() + item.nome.slice(1);
-            const itemNameNormalized = item.nome; 
+    // 💥 Melhoria: Cria o listener com query (V9)
+    const listQuery = query(SHOPPING_LIST_COLLECTION, orderBy('timestamp'));
 
-            const productQuery = await PRODUCTS_COLLECTION.where('nome', '==', itemNameNormalized).limit(1).get();
-            let bestPriceHint = 'Novo item. Sem histórico de preço.';
+    // 💥 Melhoria: Usando docChanges() para manipulação cirúrgica do DOM
+    unsubscribeShoppingList = onSnapshot(listQuery, (snapshot) => {
+        
+        snapshot.docChanges().forEach((change) => {
+            const item = change.doc.data();
+            const itemId = change.doc.id;
 
-            if (!productQuery.empty) {
-                const productData = productQuery.docs[0].data();
-                if (productData.melhorPreco && productData.melhorPreco !== Infinity) {
-                    const promo = productData.emPromocao ? ' (PROMO)' : '';
-                    bestPriceHint = `Melhor Preço: R$ ${productData.melhorPreco.toFixed(2)} em ${productData.melhorMercado}${promo}`;
+            const priceHint = item.melhorPreco || Infinity;
+            const marketHint = item.melhorMercado || 'N/A';
+            const isPromo = item.emPromocao || false;
+
+            if (change.type === 'added') {
+                const li = createListItem(itemId, item.nome, priceHint, marketHint, isPromo);
+                shoppingListUI.appendChild(li);
+            }
+            if (change.type === 'modified') {
+                // Apenas modifica a dica de preço se os dados denormalizados mudaram
+                const existingLi = document.getElementById(`item-${itemId}`);
+                if (existingLi) {
+                    const bestPriceHintText = priceHint === Infinity 
+                        ? 'Novo item. Sem histórico de preço.'
+                        : `Melhor Preço: ${formatCurrency(priceHint)} em ${marketHint}${isPromo ? ' (PROMO)' : ''}`;
+                    existingLi.querySelector('.price-hint').textContent = bestPriceHintText;
                 }
             }
-
-            const li = document.createElement('li');
-            li.className = 'shopping-item';
-            li.innerHTML = `
-                <div class="item-info">
-                    <span class="item-name">${itemNameDisplay}</span>
-                    <span class="price-hint">${bestPriceHint}</span>
-                </div>
-                <button class="buy-button" onclick="markAsBought('${itemId}', '${item.nome}')">Comprei!</button>
-            `;
-            
-            shoppingListUI.appendChild(li);
-        }
+            if (change.type === 'removed') {
+                const existingLi = document.getElementById(`item-${itemId}`);
+                if (existingLi) {
+                    existingLi.remove();
+                }
+            }
+        });
         
+        // Recarregar o histórico é mais seguro fora do docChanges loop
         loadProductHistory(); 
 
     }, (error) => {
@@ -264,13 +348,12 @@ const setupShoppingListListener = () => {
 };
 
 // =================================================================
-// 6. Configuração dos Event Listeners Iniciais (BLOCO DE EXECUÇÃO ÚNICA)
+// 6. Configuração dos Event Listeners Iniciais (Execução Final)
 // =================================================================
 
-// Variável de segurança global para garantir que esta seção rode APENAS UMA VEZ.
+// Garantia anti-duplicação (Ainda mantida, mesmo com módulos, por segurança extrema)
 if (!window.isShoppingListInitialized) {
     
-    // 1. Configura os Event Listeners (para não duplicar a ação de adicionar)
     addButton.addEventListener('click', addItem);
     itemNameInput.addEventListener('keyup', (event) => {
         if (event.key === 'Enter') addItem();
@@ -284,13 +367,9 @@ if (!window.isShoppingListInitialized) {
         }
     });
 
-    // 2. Inicia o Listener (que, por sua vez, cancela o anterior caso exista)
     setupShoppingListListener();
-
-    // 3. Define a flag para impedir futuras execuções deste bloco.
     window.isShoppingListInitialized = true;
     
 } else {
-    // Caso o script rode novamente, esta mensagem aparecerá no console, mas nada será duplicado.
-    console.warn("Inicialização do script bloqueada: já executado.");
+    console.warn("Inicialização de listeners bloqueada.");
 }
