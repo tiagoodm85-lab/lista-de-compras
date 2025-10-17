@@ -1,7 +1,10 @@
-// firebase.js (Versão CORRIGIDA)
+// firebase.js (Versão Final - Modularizada com Firebase v9)
 
-// Importa apenas o necessário do Firebase v9 (Melhor Performance!)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+// 1. IMPORTAÇÕES NECESSÁRIAS DO FIREBASE V9
+import { 
+    initializeApp 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+
 import { 
     getFirestore, 
     collection, 
@@ -10,7 +13,7 @@ import {
     query, 
     orderBy, 
     where, 
-    limit, // <--- ADICIONADO!
+    limit, 
     addDoc, 
     updateDoc, 
     deleteDoc, 
@@ -18,7 +21,8 @@ import {
     getDocs 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// Suas configurações
+
+// 2. CONFIGURAÇÕES (MANTER OU ATUALIZAR SUAS CHAVES)
 const firebaseConfig = {
     apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
     authDomain: "lista-de-compras-399c7.firebaseapp.com",
@@ -28,22 +32,24 @@ const firebaseConfig = {
     appId: "1:255177223099:web:ce583b7412fe7dddceb29e" 
 };
 
+// 3. INICIALIZAÇÃO
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// REFERÊNCIAS DE COLEÇÕES
+// 4. REFERÊNCIAS DE COLEÇÕES (EXPORTÁVEIS)
 export const PRODUCTS_COLLECTION = collection(db, 'produtos');
 export const SHOPPING_LIST_COLLECTION = collection(db, 'lista_atual');
 export const MARKETS_COLLECTION = collection(db, 'mercados');
 
-// EXPORTAÇÕES MODULARES: Expor todos os métodos que usaremos (v9)
+// 5. FUNÇÕES DO FIRESTORE (EXPORTÁVEIS)
+// Isso centraliza todas as chamadas do Firestore para que 'script.js' fique mais limpo.
 export { 
     doc,
     onSnapshot, 
     query, 
     orderBy, 
     where, 
-    limit, // <--- ADICIONADO!
+    limit, 
     addDoc, 
     updateDoc, 
     deleteDoc, 

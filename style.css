@@ -48,106 +48,137 @@ h1 {
     font-size: 16px;
 }
 
+#addButton:hover {
+    background-color: #1e7e34;
+}
+
+/* Estilo da lista de compras */
 #shoppingList {
     list-style: none;
     padding: 0;
+    margin-bottom: 30px;
 }
 
-#shoppingList li {
+.shopping-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 15px;
-    border-bottom: 1px solid #eee;
-    background-color: #f9f9f9;
     margin-bottom: 8px;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.item-info {
-    flex-grow: 1;
-}
-
-.item-name {
-    font-weight: bold;
-    font-size: 1.1em;
-    display: block;
-    color: #333;
-}
-
-.price-hint {
-    font-size: 0.9em;
-    color: #6c757d;
-    display: block;
-    margin-top: 4px;
-}
-
-.buy-button {
-    padding: 8px 12px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-left: 10px;
-}
-/* --- Novo CSS para a Área de Histórico --- */
-
-hr {
-    border: 0;
-    height: 1px;
-    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0));
-    margin: 25px 0;
-}
-
-h2 {
-    color: #007bff;
-    font-size: 1.3em;
-    margin-bottom: 10px;
-}
-
-.history-info {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin-bottom: 15px;
-}
-
-#productHistoryArea {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.product-tag {
     background-color: #e9ecef;
-    padding: 8px 12px;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    user-select: none; /* Impede seleção de texto no celular */
+    border-radius: 4px;
+    transition: background-color 0.3s;
 }
 
-.product-tag:hover {
+.shopping-item:hover {
     background-color: #dee2e6;
 }
 
+.item-info {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    margin-right: 15px;
+}
+
+.item-name {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.price-hint {
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 3px;
+}
+
+.buy-button, .delete-button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 8px;
+    transition: background-color 0.3s;
+}
+
+.buy-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.buy-button:hover {
+    background-color: #0056b3;
+}
+
+.delete-button {
+    background-color: #dc3545;
+    color: white;
+}
+
+.delete-button:hover {
+    background-color: #c82333;
+}
+
+/* Área de Histórico de Produtos (Tags) */
+#productHistoryArea {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0;
+}
+
+.product-tag {
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
 .product-tag input[type="checkbox"] {
-    margin-right: 8px;
+    margin-right: 5px;
     cursor: pointer;
 }
 
-/* --- ESTILOS DA MODAL (NOVO) --- */
+.product-tag:hover {
+    background-color: #e2e6ea;
+}
+
+/* Estilo para itens ativos/desabilitados no histórico */
+.disabled-tag {
+    background-color: #e0f7e9; /* Cor verde clara para indicar que já está na lista */
+    border-color: #28a745;
+    color: #28a745;
+    cursor: default;
+}
+
+.disabled-tag:hover {
+    background-color: #e0f7e9; /* Sem mudança de cor ao passar o mouse */
+}
+
+/* Estilo para o checkbox desabilitado */
+.disabled-tag input[type="checkbox"][disabled] {
+    cursor: default;
+    opacity: 0.7;
+}
+
+
+/* ========================================= */
+/* ESTILOS DO MODAL DE COMPRA */
+/* ========================================= */
 .modal {
-    display: none; 
-    position: fixed; 
+    display: none; /* Escondido por padrão */
+    position: fixed;
     z-index: 1; 
     left: 0;
     top: 0;
-    width: 100%; 
-    height: 100%; 
+    width: 100%;
+    height: 100%;
     overflow: auto; 
     background-color: rgba(0,0,0,0.4); 
     padding-top: 60px;
@@ -155,12 +186,53 @@ h2 {
 
 .modal-content {
     background-color: #fefefe;
-    margin: 5% auto;
-    padding: 20px;
+    margin: 5% auto; /* 5% do topo e centralizado */
+    padding: 30px;
     border: 1px solid #888;
-    width: 80%;
+    width: 80%; 
+    max-width: 400px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+    color: #007bff;
+    margin-top: 0;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.modal-content input[type="number"],
+.modal-content select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Garante que o padding não aumente a largura */
+}
+
+.modal-content button {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.modal-content button:hover {
+    background-color: #1e7e34;
 }
 
 .close-button {
@@ -177,21 +249,7 @@ h2 {
     cursor: pointer;
 }
 
-.modal-content label, .modal-content input, .modal-content select {
-    display: block;
-    margin-bottom: 10px;
-}
-
-.modal-content button {
-    margin-top: 15px;
-}
-
-
-/* ========================================= */
 /* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
-/* ========================================= */
-
-/* Empilhamento de elementos na área de input */
 @media (max-width: 600px) {
     .container {
         padding: 15px;
@@ -234,17 +292,23 @@ h2 {
         font-size: 0.85em;
         padding-top: 3px;
     }
-    
-    .buy-button {
-        width: 100%; /* Botão "Comprei!" ocupa a largura total para fácil toque */
-        padding: 10px;
-        font-size: 1em;
+
+    .buy-button, .delete-button {
+        width: 100%; /* Botões ocupam a largura total no mobile */
         margin-left: 0;
+        margin-top: 5px;
+        padding: 10px;
+    }
+    
+    /* Ajuste para botões na mesma linha se a tela permitir */
+    .shopping-item > button:first-of-type {
+        margin-top: 0; /* O primeiro botão na segunda linha não precisa de margin-top extra */
     }
 
-    /* Área de histórico de produtos (checkboxes) */
-    .product-tag {
-        font-size: 0.9em;
-        padding: 10px 15px; /* Aumenta a área de toque do checkbox */
+    /* Ajustes no modal */
+    .modal-content {
+        margin: 10% auto;
+        width: 90%;
+        padding: 20px;
     }
 }
