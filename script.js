@@ -3,7 +3,8 @@
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import { 
     PRODUCTS_COLLECTION, SHOPPING_LIST_COLLECTION, MARKETS_COLLECTION,
-    onSnapshot, query, orderBy, where, limit, // <--- AGORA INCLUINDO 'limit'
+    doc,
+    onSnapshot, query, orderBy, where, limit, 
     addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs
 } from './firebase.js';
 
@@ -108,18 +109,24 @@ const openBuyModal = async (itemId, itemName) => {
     modalItemName.textContent = `Registrar compra de: ${itemName.charAt(0).toUpperCase() + itemName.slice(1)}`;
     
     marketSelect.innerHTML = '<option value="" selected disabled hidden>Carregando mercados...</option>';
+    marketSelect.disabled = true; // Desabilita enquanto carrega
     
     // Melhoria: Assincronia e uso de getDocs (v9)
-    const marketsSnapshot = await getDocs(query(MARKETS_COLLECTION, orderBy('nome')));
+    try {
+        const marketsSnapshot = await getDocs(query(MARKETS_COLLECTION, orderBy('nome')));
+        marketSelect.innerHTML = '<option value="" selected disabled hidden>Selecione um mercado</option>';
+        marketsSnapshot.forEach(doc => {
+            const option = document.createElement('option');
+            option.value = doc.data().nome;
+            option.textContent = doc.data().nome;
+            marketSelect.appendChild(option);
+        });
+        marketSelect.disabled = false; // Habilita após carregar
+    } catch (error) {
+        console.error("Erro ao carregar mercados:", error);
+        marketSelect.innerHTML = '<option value="" selected disabled hidden>Erro ao carregar mercados</option>';
+    }
     
-    marketSelect.innerHTML = '<option value="" selected disabled hidden>Selecione um mercado</option>';
-    marketsSnapshot.forEach(doc => {
-        const option = document.createElement('option');
-        option.value = doc.data().nome;
-        option.textContent = doc.data().nome;
-        marketSelect.appendChild(option);
-    });
-
     buyModal.style.display = 'block';
 };
 
@@ -132,6 +139,7 @@ const closeBuyModal = () => {
     currentItemName = null;
 };
 
+// 💥 Correção: A função deve ser ASYNC para usar await no processBuy
 const confirmBuyHandler = async () => {
     const pricePaid = parseFloat(priceInput.value);
     const market = marketSelect.value;
@@ -142,9 +150,23 @@ const confirmBuyHandler = async () => {
         return;
     }
     
-    await processBuy(currentItemId, currentItemName, pricePaid, market, isPromo);
-    closeBuyModal();
+    // Desabilita o botão para evitar cliques duplicados
+    confirmBuyButton.disabled = true;
+
+    try {
+        // Chama o processamento assíncrono
+        await processBuy(currentItemId, currentItemName, pricePaid, market, isPromo);
+        
+        // Se deu certo, fecha a modal
+        closeBuyModal();
+    } catch (error) {
+        console.error("Erro ao confirmar a compra:", error);
+        alert("Ocorreu um erro ao registrar a compra. Verifique o console.");
+    } finally {
+        confirmBuyButton.disabled = false;
+    }
 };
+
 
 const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
     const itemNameNormalized = itemName.toLowerCase();
@@ -158,18 +180,12 @@ const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
     let productId;
     let bestPrice = Infinity;
     let melhorMercadoExistente = 'N/A';
-    const productRef = productQuery.empty 
-        ? null 
-        : productQuery.docs[0].ref; // Referência do documento (v9)
-
-    if (productRef) {
-        productId = productQuery.docs[0].id;
-        bestPrice = productQuery.docs[0].data().melhorPreco || Infinity;
-        melhorMercadoExistente = productQuery.docs[0].data().melhorMercado;
-
-        // Atualiza a lista ATUAL para mostrar a dica de preço ATUALIZADA (para outros usuários)
-        // Isso é opcional, mas garante que todos os clientes vejam o novo preço imediatamente.
-        // await updateDoc(doc(SHOPPING_LIST_COLLECTION, itemId), { melhorPreco: bestPrice, melhorMercado: melhorMercadoExistente });
+    
+    if (!productQuery.empty) {
+        const docSnapshot = productQuery.docs[0];
+        productId = docSnapshot.id;
+        bestPrice = docSnapshot.data().melhorPreco || Infinity;
+        melhorMercadoExistente = docSnapshot.data().melhorMercado;
     } else {
         // 💥 Melhoria: Cria o produto se não existir (v9)
         const newProductRef = await addDoc(PRODUCTS_COLLECTION, {
@@ -191,7 +207,7 @@ const processBuy = async (itemId, itemName, pricePaid, market, isPromo) => {
         });
         alert(`NOVO RECORDE! O melhor preço de ${itemName.charAt(0).toUpperCase() + itemName.slice(1)} agora é ${formatCurrency(pricePaid)} em ${market}.`);
     } else {
-        const precoExistente = bestPrice === Infinity ? 'N/A' : bestPrice.toFixed(2);
+        const precoExistente = bestPrice === Infinity ? 'N/A' : formatCurrency(bestPrice);
         alert(`Compra registrada, mas o melhor preço continua sendo ${precoExistente} em ${melhorMercadoExistente}.`);
     }
 };
