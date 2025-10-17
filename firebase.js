@@ -1,4 +1,4 @@
-// firebase.js
+// firebase.js (Versão CORRIGIDA)
 
 // Importa apenas o necessário do Firebase v9 (Melhor Performance!)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -10,6 +10,7 @@ import {
     query, 
     orderBy, 
     where, 
+    limit, // <--- ADICIONADO!
     addDoc, 
     updateDoc, 
     deleteDoc, 
@@ -17,7 +18,7 @@ import {
     getDocs 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// Suas configurações (apenas para inicializar o app)
+// Suas configurações
 const firebaseConfig = {
     apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
     authDomain: "lista-de-compras-399c7.firebaseapp.com",
@@ -30,7 +31,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// REFERÊNCIAS DE COLEÇÕES: Usamos a função collection(db, 'nome') do v9
+// REFERÊNCIAS DE COLEÇÕES
 export const PRODUCTS_COLLECTION = collection(db, 'produtos');
 export const SHOPPING_LIST_COLLECTION = collection(db, 'lista_atual');
 export const MARKETS_COLLECTION = collection(db, 'mercados');
@@ -42,6 +43,7 @@ export {
     query, 
     orderBy, 
     where, 
+    limit, // <--- ADICIONADO!
     addDoc, 
     updateDoc, 
     deleteDoc, 
