@@ -313,6 +313,8 @@ const setupShoppingListListener = () => {
                 const productSnapshot = await getDocs(productQuery);
 
                 let priceHints = [];
+                let regularHint = '';
+                let promoHint = '';
 
                 if (!productSnapshot.empty) {
                     const productData = productSnapshot.docs[0].data();
@@ -321,22 +323,41 @@ const setupShoppingListListener = () => {
                     const regularPrice = productData.melhorPrecoRegular;
                     const regularMarket = productData.melhorMercadoRegular;
                     if (regularPrice !== undefined && regularPrice !== null && regularPrice !== Infinity) {
-                        priceHints.push(`Regular: R$ ${regularPrice.toFixed(2)} (${regularMarket})`);
+                        regularHint = `Regular: R$ ${regularPrice.toFixed(2)} (${regularMarket})`;
                     }
 
                     // Melhor Preço Promoção
                     const promoPrice = productData.melhorPrecoPromo;
                     const promoMarket = productData.melhorMercadoPromo;
                     if (promoPrice !== undefined && promoPrice !== null && promoPrice !== Infinity) {
-                        priceHints.push(`Promoção: R$ ${promoPrice.toFixed(2)} (${promoMarket})`);
+                        promoHint = `Promoção: R$ ${promoPrice.toFixed(2)} (${promoMarket})`;
                     }
                 }
-
-                // Formata o texto de dica de preço
-                let bestPriceHint = priceHints.length > 0 ?
-                                    priceHints.join(' | ') : // <-- ESTA LINHA VAI MUDAR
-                                    'Novo item. Sem histórico de preço.';
                 
+                // Formata o texto de dica de preço com quebra de linha (<br>)
+                let bestPriceHint = '';
+                
+                // 1. Adiciona o Regular Hint (se existir)
+                if (regularHint) {
+                    bestPriceHint += regularHint;
+                }
+                
+                // 2. Adiciona quebra de linha e Promo Hint (se ambos existirem)
+                if (regularHint && promoHint) {
+                    bestPriceHint += '<br>';
+                }
+                
+                // 3. Adiciona o Promo Hint (se existir)
+                if (promoHint) {
+                    bestPriceHint += promoHint;
+                }
+
+                // Se não tiver nenhum dos dois, mostra a mensagem padrão
+                if (!regularHint && !promoHint) {
+                    bestPriceHint = 'Novo item. Sem histórico de preço.';
+                }
+
+
                 // 2. Renderização ou Atualização do Item
                 const newLiHtml = `
                     <div class="item-info">
