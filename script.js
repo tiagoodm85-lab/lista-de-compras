@@ -153,7 +153,7 @@ const loadMarketsToSelect = async () => {
     }
 };
 
-// FUNÇÃO ATUALIZADA para registrar o melhor preço promocional e regular
+
 const confirmBuyHandler = async () => {
     const pricePaidStr = priceInput.value;
     const marketName = marketSelect.value;
@@ -283,7 +283,6 @@ const loadProductHistory = async () => {
 // Listener Principal (Lista de Compras Atual)
 // =================================================================
 
-// FUNÇÃO ATUALIZADA para exibir os dois tipos de melhor preço
 const setupShoppingListListener = () => {
     if (unsubscribeShoppingList) {
         unsubscribeShoppingList(); // Cancela o listener antigo se existir
@@ -295,3 +294,122 @@ const setupShoppingListListener = () => {
     unsubscribeShoppingList = onSnapshot(q, async (snapshot) => {
 
         // Limpa a lista apenas para a primeira carga ou se for uma mudança total
+        if (snapshot.docChanges().length === snapshot.docs.length && snapshot.docChanges().every(change => change.type === 'added')) {
+             shoppingListUI.innerHTML = '';
+        }
+
+        // Processa as mudanças no snapshot
+        snapshot.docChanges().forEach(async (change) => {
+            const itemId = change.doc.id;
+            const item = change.doc.data();
+            const itemNameDisplay = item.nome.charAt(0).toUpperCase() + item.nome.slice(1);
+
+            if (change.type === 'added' || change.type === 'modified') {
+                let existingLi = document.getElementById(`item-${itemId}`);
+
+                // 1. Sugestão de Preço (Best Price Hint)
+                const itemNameNormalized = item.nome;
+                const productQuery = query(PRODUCTS_COLLECTION, where('nome', '==', itemNameNormalized), limit(1));
+                const productSnapshot = await getDocs(productQuery);
+
+                let priceHints = [];
+
+                if (!productSnapshot.empty) {
+                    const productData = productSnapshot.docs[0].data();
+
+                    // Melhor Preço Regular
+                    const regularPrice = productData.melhorPrecoRegular;
+                    const regularMarket = productData.melhorMercadoRegular;
+                    if (regularPrice !== undefined && regularPrice !== null && regularPrice !== Infinity) {
+                        priceHints.push(`Regular: R$ ${regularPrice.toFixed(2)} (${regularMarket})`);
+                    }
+
+                    // Melhor Preço Promoção
+                    const promoPrice = productData.melhorPrecoPromo;
+                    const promoMarket = productData.melhorMercadoPromo;
+                    if (promoPrice !== undefined && promoPrice !== null && promoPrice !== Infinity) {
+                        priceHints.push(`Promoção: R$ ${promoPrice.toFixed(2)} (${promoMarket})`);
+                    }
+                }
+
+                // Formata o texto de dica de preço
+                let bestPriceHint = priceHints.length > 0 ?
+                                    priceHints.join(' | ') :
+                                    'Novo item. Sem histórico de preço.';
+
+
+                // 2. Renderização ou Atualização do Item
+                const newLiHtml = `
+                    <div class="item-info">
+                        <span class="item-name">${itemNameDisplay}</span>
+                        <span class="price-hint">${bestPriceHint}</span>
+                    </div>
+                    <button class="delete-button" onclick="deleteItem('${itemId}')">X</button>
+                    <button class="buy-button" onclick="markAsBought('${itemId}', '${item.nome}')">Comprei!</button>
+                `;
+
+                if (change.type === 'added') {
+                    const li = document.createElement('li');
+                    li.id = `item-${itemId}`;
+                    li.className = 'shopping-item';
+                    li.innerHTML = newLiHtml;
+
+                    // Inserção no topo da lista (por causa do orderBy('desc'))
+                    if (shoppingListUI.firstChild) {
+                        shoppingListUI.insertBefore(li, shoppingListUI.firstChild);
+                    } else {
+                        shoppingListUI.appendChild(li);
+                    }
+                } else if (change.type === 'modified' && existingLi) {
+                    existingLi.innerHTML = newLiHtml;
+                }
+            }
+
+            if (change.type === 'removed') {
+                const existingLi = document.getElementById(`item-${itemId}`);
+                if (existingLi) {
+                    existingLi.remove();
+                }
+            }
+        });
+
+        // Recarregar o histórico é mais seguro fora do docChanges loop
+        loadProductHistory();
+
+    }, (error) => {
+        console.error("Erro no Listener principal do Firestore:", error);
+        shoppingListUI.innerHTML = `<li style="color: red;">Erro ao carregar a lista de compras.</li>`;
+    });
+};
+
+// =================================================================
+// 6. Configuração dos Event Listeners Iniciais (Execução Final)
+// =================================================================
+
+// Exporta as funções para serem acessíveis pelos eventos 'onclick' no HTML globalmente
+window.markAsBought = openBuyModal;
+window.deleteItem = deleteItem;
+window.addFromHistory = addFromHistory;
+
+// Adiciona um flag global para evitar duplicação de listeners em ambientes de desenvolvimento
+if (!window.isShoppingListInitialized) {
+
+    addButton.addEventListener('click', addItem);
+    itemNameInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') addItem();
+    });
+
+    confirmBuyButton.addEventListener('click', confirmBuyHandler);
+    closeButton.addEventListener('click', closeBuyModal);
+    window.addEventListener('click', (event) => {
+        if (event.target === buyModal) {
+            closeBuyModal();
+        }
+    });
+
+    setupShoppingListListener();
+    window.isShoppingListInitialized = true;
+
+} else {
+    console.warn("Inicialização de listeners bloqueada. (Usando um módulo ES6)");
+}
