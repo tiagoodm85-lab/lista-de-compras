@@ -336,7 +336,7 @@ const setupShoppingListListener = () => {
                 let bestPriceHint = priceHints.length > 0 ?
                                     priceHints.join(' | ') : // <-- ESTA LINHA VAI MUDAR
                                     'Novo item. Sem histórico de preço.';
-
+                
                 // 2. Renderização ou Atualização do Item
                 const newLiHtml = `
                     <div class="item-info">
