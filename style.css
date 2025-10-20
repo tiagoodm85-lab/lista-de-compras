@@ -312,3 +312,12 @@ h1 {
         padding: 20px;
     }
 }
+
+.price-hint {
+    /* ADICIONE ESTA LINHA: */
+    display: block; 
+    
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 3px;
+}
