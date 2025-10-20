@@ -309,3 +309,126 @@ const setupShoppingListListener = () => {
 
                 // 1. Sugestão de Preço (Best Price Hint) - LÓGICA DE FORMATO ATUALIZADA
                 const itemNameNormalized = item.nome;
+                const productQuery = query(PRODUCTS_COLLECTION, where('nome', '==', itemNameNormalized), limit(1));
+                const productSnapshot = await getDocs(productQuery);
+
+                let regularHint = '';
+                let promoHint = '';
+
+                if (!productSnapshot.empty) {
+                    const productData = productSnapshot.docs[0].data();
+
+                    // Melhor Preço Regular
+                    const regularPrice = productData.melhorPrecoRegular;
+                    const regularMarket = productData.melhorMercadoRegular;
+                    if (regularPrice !== undefined && regularPrice !== null && regularPrice !== Infinity) {
+                        regularHint = `Regular: R$ ${regularPrice.toFixed(2)} (${regularMarket})`;
+                    }
+
+                    // Melhor Preço Promoção
+                    const promoPrice = productData.melhorPrecoPromo;
+                    const promoMarket = productData.melhorMercadoPromo;
+                    if (promoPrice !== undefined && promoPrice !== null && promoPrice !== Infinity) {
+                        promoHint = `Promoção: R$ ${promoPrice.toFixed(2)} (${promoMarket})`;
+                    }
+                }
+                
+                // Formata o texto de dica de preço com quebra de linha (<br>)
+                let bestPriceHint = '';
+                
+                // 1. Adiciona o Regular Hint (sempre primeiro)
+                if (regularHint) {
+                    bestPriceHint += regularHint;
+                }
+                
+                // 2. Adiciona quebra de linha (se ambos existirem)
+                if (regularHint && promoHint) {
+                    bestPriceHint += '<br>';
+                }
+                
+                // 3. Adiciona o Promo Hint
+                if (promoHint) {
+                    bestPriceHint += promoHint;
+                }
+
+                // Se não tiver nenhum dos dois, mostra a mensagem padrão
+                if (!regularHint && !promoHint) {
+                    bestPriceHint = 'Novo item. Sem histórico de preço.';
+                }
+
+
+                // 2. Renderização ou Atualização do Item
+                const newLiHtml = `
+                    <div class="item-info">
+                        <span class="item-name">${itemNameDisplay}</span>
+                        <span class="price-hint">${bestPriceHint}</span>
+                    </div>
+                    <button class="delete-button" onclick="deleteItem('${itemId}')">X</button>
+                    <button class="buy-button" onclick="markAsBought('${itemId}', '${item.nome}')">Comprei!</button>
+                `;
+
+                if (change.type === 'added') {
+                    const li = document.createElement('li');
+                    li.id = `item-${itemId}`;
+                    li.className = 'shopping-item';
+                    li.innerHTML = newLiHtml;
+
+                    // Inserção no topo da lista (por causa do orderBy('desc'))
+                    if (shoppingListUI.firstChild) {
+                        shoppingListUI.insertBefore(li, shoppingListUI.firstChild);
+                    } else {
+                        shoppingListUI.appendChild(li);
+                    }
+                } else if (change.type === 'modified' && existingLi) {
+                    existingLi.innerHTML = newLiHtml;
+                }
+            }
+
+            if (change.type === 'removed') {
+                const existingLi = document.getElementById(`item-${itemId}`);
+                if (existingLi) {
+                    existingLi.remove();
+                }
+            }
+        });
+
+        // Recarregar o histórico é mais seguro fora do docChanges loop
+        loadProductHistory();
+
+    }, (error) => {
+        console.error("Erro no Listener principal do Firestore:", error);
+        shoppingListUI.innerHTML = `<li style="color: red;">Erro ao carregar a lista de compras.</li>`;
+    });
+};
+
+// =================================================================
+// 6. Configuração dos Event Listeners Iniciais (Execução Final)
+// =================================================================
+
+// Exporta as funções para serem acessíveis pelos eventos 'onclick' no HTML globalmente
+window.markAsBought = openBuyModal;
+window.deleteItem = deleteItem;
+window.addFromHistory = addFromHistory;
+
+// Adiciona um flag global para evitar duplicação de listeners em ambientes de desenvolvimento
+if (!window.isShoppingListInitialized) {
+
+    addButton.addEventListener('click', addItem);
+    itemNameInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') addItem();
+    });
+
+    confirmBuyButton.addEventListener('click', confirmBuyHandler);
+    closeButton.addEventListener('click', closeBuyModal);
+    window.addEventListener('click', (event) => {
+        if (event.target === buyModal) {
+            closeBuyModal();
+        }
+    });
+
+    setupShoppingListListener();
+    window.isShoppingListInitialized = true;
+
+} else {
+    console.warn("Inicialização de listeners bloqueada. (Usando um módulo ES6)");
+}
