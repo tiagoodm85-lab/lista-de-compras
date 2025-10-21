@@ -1,4 +1,4 @@
-// script.js (Versão Otimizada com Correção de Reatividade)
+// script.js (Versão Profissional - Otimizada, Reativa e com Correção de Zoom)
 
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import {
@@ -260,6 +260,10 @@ const confirmBuyHandler = async () => {
             await deleteDoc(shoppingItemRef);
         }
 
+        // CORREÇÃO DE ZOOM: Remove o foco do input de preço antes de fechar o modal.
+        // Isso força o fechamento do teclado virtual e o navegador a desfazer o zoom.
+        priceInput.blur(); 
+        
         closeBuyModal(); 
     } catch (error) {
         console.error("Erro ao registrar compra:", error);
@@ -282,9 +286,7 @@ const setupProductHistoryListener = () => {
             const product = doc.data();
             productCache.set(product.nome, product);
         });
-
-        // Não chama renderProductHistory() aqui, para evitar conflito com o listener da lista de compras.
-        // O renderProductHistory() será chamado no final do listener da lista de compras.
+        // A renderização do histórico visual será chamada pelo listener da lista de compras
     }, (error) => {
         console.error("Erro no Listener do Histórico de Produtos:", error);
     });
@@ -317,7 +319,7 @@ const renderProductHistory = async () => {
 
             const displayName = capitalize(productName);
             const checkboxDisabledAttr = isItemActive ? 'disabled' : '';
-            const checkboxCheckedAttr = isItemActive ? 'checked' : ''; // Para manter a aparência de "marcado"
+            const checkboxCheckedAttr = isItemActive ? 'checked' : ''; 
 
             tag.innerHTML = `
                 <input type="checkbox" ${checkboxDisabledAttr} ${checkboxCheckedAttr} onclick="addFromHistory(event, '${productName}')">
@@ -394,11 +396,7 @@ const setupShoppingListListener = () => {
             }
         });
 
-        // ----------------------------------------------------
-        // CORREÇÃO DE REATIVIDADE: 
-        // Chama a renderização do histórico após qualquer mudança 
-        // na lista de compras (adicionar/remover)
-        // ----------------------------------------------------
+        // CORREÇÃO DE REATIVIDADE: Chama a renderização do histórico após qualquer mudança 
         renderProductHistory(); 
 
     }, (error) => {
