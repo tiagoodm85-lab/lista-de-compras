@@ -1,4 +1,4 @@
-// script.js (Versão Final - Otimizada, Reativa e com Correção de Zoom)
+// script.js (Versão Final - Otimizada, Reativa, Zoom Fix e Input Limpo)
 
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import {
@@ -49,7 +49,8 @@ const capitalize = (s) => {
 const formatPriceHint = (productData) => {
     let regularHint = '';
     let promoHint = '';
-    const currency = 'R$'; // Moeda: Reais (Manter R$ conforme index.html)
+    // MOEDA CORRIGIDA PARA CAD$ (Isto é usado na lista de compras)
+    const currency = 'CAD$'; 
 
     if (productData) {
         // Melhor Preço Regular
@@ -110,16 +111,24 @@ const openBuyModal = async (itemId, itemName) => {
 
     await loadMarketsToSelect();
 
-    // Preenche o input de preço com o melhor preço regular do cache, se existir
+    // NOVO: Limpa o input de preço. O usuário não quer que o valor seja preenchido automaticamente.
+    priceInput.value = '';
+
+    // Apenas para referência: a lógica anterior era:
+    /*
     const cachedProduct = productCache.get(itemName);
     if (cachedProduct && cachedProduct.melhorPrecoRegular) {
         priceInput.value = cachedProduct.melhorPrecoRegular.toFixed(2);
     } else {
         priceInput.value = '';
     }
+    */
 
     promoCheckbox.checked = false;
     buyModal.style.display = 'block';
+    
+    // Opcional: foca o input para abrir o teclado mais rápido no mobile (se o zoom estiver corrigido)
+    // priceInput.focus();
 };
 
 // Função para deletar um item da lista (chamada pelo HTML)
@@ -234,24 +243,38 @@ const confirmBuyHandler = async () => {
             // Produto existente
             const itemRefQuery = query(PRODUCTS_COLLECTION, where('nome', '==', currentItemName), limit(1));
             const itemSnapshot = await getDocs(itemRefQuery);
-            productDocRef = doc(PRODUCTS_COLLECTION, itemSnapshot.docs[0].id);
-            const productData = itemSnapshot.docs[0].data();
+            // Verifica se o documento existe antes de tentar acessar o índice [0]
+            if (itemSnapshot.docs.length > 0) {
+                 productDocRef = doc(PRODUCTS_COLLECTION, itemSnapshot.docs[0].id);
+                 const productData = itemSnapshot.docs[0].data();
             
-            // LÓGICA DE ATUALIZAÇÃO PARA PROMOÇÃO
-            const currentPromoPrice = productData.melhorPrecoPromo || Infinity;
-            if (isPromo && pricePaid < currentPromoPrice) {
-                updateFields.melhorPrecoPromo = pricePaid;
-                updateFields.melhorMercadoPromo = marketName;
-            }
+                 // LÓGICA DE ATUALIZAÇÃO PARA PROMOÇÃO
+                 const currentPromoPrice = productData.melhorPrecoPromo || Infinity;
+                 if (isPromo && pricePaid < currentPromoPrice) {
+                     updateFields.melhorPrecoPromo = pricePaid;
+                     updateFields.melhorMercadoPromo = marketName;
+                 }
 
-            // LÓGICA DE ATUALIZAÇÃO PARA REGULAR
-            const currentRegularPrice = productData.melhorPrecoRegular || Infinity;
-            if (!isPromo && pricePaid < currentRegularPrice) {
-                updateFields.melhorPrecoRegular = pricePaid;
-                updateFields.melhorMercadoRegular = marketName;
-            }
+                 // LÓGICA DE ATUALIZAÇÃO PARA REGULAR
+                 const currentRegularPrice = productData.melhorPrecoRegular || Infinity;
+                 if (!isPromo && pricePaid < currentRegularPrice) {
+                     updateFields.melhorPrecoRegular = pricePaid;
+                     updateFields.melhorMercadoRegular = marketName;
+                 }
 
-            await updateDoc(productDocRef, updateFields);
+                 await updateDoc(productDocRef, updateFields);
+            } else {
+                // Caso o cache exista, mas o doc foi deletado, recria
+                 const productData = {
+                     nome: currentItemName,
+                     melhorPrecoPromo: isPromo ? pricePaid : null,
+                     melhorMercadoPromo: isPromo ? marketName : null,
+                     melhorPrecoRegular: !isPromo ? pricePaid : null,
+                     melhorMercadoRegular: !isPromo ? marketName : null,
+                     ultimaCompra: serverTimestamp()
+                 };
+                 await addDoc(PRODUCTS_COLLECTION, productData);
+            }
         }
         
         // 2. Apagar o Item da Lista de Compras Atual
@@ -260,8 +283,7 @@ const confirmBuyHandler = async () => {
             await deleteDoc(shoppingItemRef);
         }
 
-        // CORREÇÃO DE ZOOM: Remove o foco do input de preço antes de fechar o modal.
-        // Isso força o fechamento do teclado virtual e o navegador a desfazer o zoom.
+        // CORREÇÃO DE ZOOM (MANTIDA): Remove o foco do input de preço antes de fechar o modal.
         priceInput.blur(); 
         
         closeBuyModal(); 
@@ -287,6 +309,8 @@ const setupProductHistoryListener = () => {
             productCache.set(product.nome, product);
         });
         // A renderização do histórico visual será chamada pelo listener da lista de compras
+        // Chama a renderização inicial para garantir que o histórico não esteja vazio
+        renderProductHistory(new Set()); 
     }, (error) => {
         console.error("Erro no Listener do Histórico de Produtos:", error);
     });
@@ -352,7 +376,7 @@ const setupShoppingListListener = () => {
             
             // OTIMIZAÇÃO: Acessa o preço do cache (productCache)
             const productData = productCache.get(itemName);
-            const bestPriceHint = formatPriceHint(productData); // Usa o helper de formatação
+            const bestPriceHint = formatPriceHint(productData); // Usa o helper de formatação (agora com CAD$)
 
             if (change.type === 'added' || change.type === 'modified') {
                 let existingLi = document.getElementById(`item-${itemId}`);
