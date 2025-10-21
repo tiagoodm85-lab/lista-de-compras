@@ -1,31 +1,323 @@
-/* ... (Conteúdo anterior do style.css) ... */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
 
-/* Ajustes na lista principal */
+.container {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    margin: 20px 10px;
+}
+
+h1 {
+    text-align: center;
+    color: #007bff;
+    margin-bottom: 20px;
+}
+
+.input-area {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+#itemNameInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px 0 0 4px;
+    font-size: 16px;
+}
+
+#addButton {
+    padding: 10px 15px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#addButton:hover {
+    background-color: #1e7e34;
+}
+
+/* Estilo da lista de compras */
+#shoppingList {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 30px;
+}
+
 .shopping-item {
-    display: flex; /* Mantém o layout flexível */
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.shopping-item:hover {
+    background-color: #dee2e6;
 }
 
 .item-info {
-    flex-grow: 1; 
-    margin-right: 15px; /* Espaço entre info e botões */
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    margin-right: 15px;
 }
 
 .item-name {
     font-size: 1.1em;
     font-weight: bold;
-    display: block; 
 }
 
 .price-hint {
-    /* **GARANTE QUE CADA PREÇO (Regular/Promoção) OCUPE UMA LINHA** */
-    display: block; 
-    font-size: 0.9em;
-    color: #6c757d; 
-    margin-top: 5px; 
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 3px;
 }
 
-/* ... (continuação do CSS, incluindo a parte de responsividade @media) ... */
+.buy-button, .delete-button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 8px;
+    transition: background-color 0.3s;
+}
+
+.buy-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.buy-button:hover {
+    background-color: #0056b3;
+}
+
+.delete-button {
+    background-color: #dc3545;
+    color: white;
+}
+
+.delete-button:hover {
+    background-color: #c82333;
+}
+
+/* Área de Histórico de Produtos (Tags) */
+#productHistoryArea {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 0;
+}
+
+.product-tag {
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.product-tag input[type="checkbox"] {
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+.product-tag:hover {
+    background-color: #e2e6ea;
+}
+
+/* Estilo para itens ativos/desabilitados no histórico */
+.disabled-tag {
+    background-color: #e0f7e9; /* Cor verde clara para indicar que já está na lista */
+    border-color: #28a745;
+    color: #28a745;
+    cursor: default;
+}
+
+.disabled-tag:hover {
+    background-color: #e0f7e9; /* Sem mudança de cor ao passar o mouse */
+}
+
+/* Estilo para o checkbox desabilitado */
+.disabled-tag input[type="checkbox"][disabled] {
+    cursor: default;
+    opacity: 0.7;
+}
+
+
+/* ========================================= */
+/* ESTILOS DO MODAL DE COMPRA */
+/* ========================================= */
+.modal {
+    display: none; /* Escondido por padrão */
+    position: fixed;
+    z-index: 1; 
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); 
+    padding-top: 60px;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto; /* 5% do topo e centralizado */
+    padding: 30px;
+    border: 1px solid #888;
+    width: 80%; 
+    max-width: 400px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-content h2 {
+    color: #007bff;
+    margin-top: 0;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 15px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.modal-content input[type="number"],
+.modal-content select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Garante que o padding não aumente a largura */
+}
+
+.modal-content button {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.modal-content button:hover {
+    background-color: #1e7e34;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    
+    .input-area {
+        flex-direction: column; /* Empilha input e botão */
+        gap: 10px;
+    }
+    
+    .input-area input[type="text"],
+    .input-area button {
+        width: 100%; /* Ocupa a largura total */
+        font-size: 1em; /* Tamanho de fonte padrão */
+        padding: 12px; /* Aumenta a área de toque */
+    }
+
+    /* Ajustes na lista principal */
+    .shopping-item {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 10px;
+        gap: 8px; /* Espaçamento entre os elementos empilhados */
+    }
+
+    .item-info {
+        width: 100%;
+    }
+
+    .item-name {
+        font-size: 1.1em; /* Nome do item mais visível */
+    }
+    
+    .price-hint {
+        font-size: 0.85em;
+        padding-top: 3px;
+    }
+
+    .buy-button, .delete-button {
+        width: 100%; /* Botões ocupam a largura total no mobile */
+        margin-left: 0;
+        margin-top: 5px;
+        padding: 10px;
+    }
+    
+    /* Ajuste para botões na mesma linha se a tela permitir */
+    .shopping-item > button:first-of-type {
+        margin-top: 0; /* O primeiro botão na segunda linha não precisa de margin-top extra */
+    }
+
+    /* Ajustes no modal */
+    .modal-content {
+        margin: 10% auto;
+        width: 90%;
+        padding: 20px;
+    }
+}
+
+.price-hint {
+    /* ADICIONE ESTA LINHA: */
+    display: block; 
+    
+    font-size: 0.8em;
+    color: #6c757d;
+    margin-top: 3px;
+}
