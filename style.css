@@ -155,4 +155,160 @@ h2 {
     align-items: center;
 }
 
-.product-tag:
+.product-tag:hover:not(.disabled-tag) {
+    background-color: #dee2e6;
+}
+
+.product-tag input[type="checkbox"] {
+    margin-right: 5px;
+    pointer-events: all; /* Garante que o checkbox é clicável */
+    cursor: pointer;
+}
+
+/* Estilo para itens que já estão na lista */
+.disabled-tag {
+    opacity: 0.7;
+    background-color: #d1e7dd; /* Cor suave para indicar ativo */
+    color: #0f5132;
+    cursor: default;
+}
+
+.disabled-tag input[type="checkbox"] {
+    /* O JS já desabilita o checkbox, mas esta regra reforça a aparência */
+    opacity: 0.8;
+}
+
+/* LÓGICA DO MODAL */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 10; 
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4); 
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto; /* Ajuste inicial no PC */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Largura padrão no PC */
+    max-width: 400px;
+    border-radius: 8px;
+    position: relative;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+.modal-content input[type="number"],
+.modal-content select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.modal-content button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1.1em;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    
+    .input-area {
+        flex-direction: column; /* Empilha input e botão */
+        gap: 10px;
+    }
+    
+    .input-area input[type="text"],
+    .input-area button {
+        width: 100%;
+        font-size: 1em; 
+        padding: 12px;
+    }
+
+    /* Ajustes na lista principal */
+    .shopping-item {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 10px;
+        gap: 8px; 
+    }
+
+    .item-info {
+        width: 100%;
+    }
+
+    .item-name {
+        font-size: 1.1em;
+    }
+    
+    .price-hint {
+        font-size: 0.85em;
+        padding-top: 3px;
+    }
+
+    .buy-button, .delete-button {
+        width: 100%; /* Botões ocupam a largura total no mobile */
+        margin-left: 0;
+        margin-top: 5px;
+        padding: 10px;
+    }
+    
+    /* Ajuste para botões na mesma linha se a tela permitir */
+    .shopping-item > button:first-of-type {
+        margin-top: 0;
+    }
+
+    /* ======================================= */
+    /* **CORREÇÃO UX DO MODAL NO MOBILE** */
+    /* ======================================= */
+    .modal-content {
+        /* Garante que o modal apareça mais alto na tela, 
+           minimizando problemas com o teclado virtual. */
+        margin: 5% auto; /* Reduz a margem superior */
+        width: 90%;
+        padding: 15px; /* Padding um pouco menor para economizar espaço */
+    }
+}
