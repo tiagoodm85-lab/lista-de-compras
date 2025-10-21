@@ -1,4 +1,4 @@
-// script.js (Versão Profissional - Otimizada, Reativa e com Correção de Zoom)
+// script.js (Versão Final - Otimizada, Reativa e com Correção de Zoom)
 
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import {
@@ -49,7 +49,7 @@ const capitalize = (s) => {
 const formatPriceHint = (productData) => {
     let regularHint = '';
     let promoHint = '';
-    const currency = 'CAD$'; // Moeda: Dólar Canadense
+    const currency = 'R$'; // Moeda: Reais (Manter R$ conforme index.html)
 
     if (productData) {
         // Melhor Preço Regular
@@ -128,7 +128,6 @@ const deleteItem = async (itemId) => {
         try {
             const itemRef = doc(SHOPPING_LIST_COLLECTION, itemId);
             await deleteDoc(itemRef);
-            // renderProductHistory() será chamado pelo listener da lista de compras
         } catch (error) {
             console.error("Erro ao deletar item:", error);
             alert("Não foi possível deletar o item.");
@@ -236,16 +235,17 @@ const confirmBuyHandler = async () => {
             const itemRefQuery = query(PRODUCTS_COLLECTION, where('nome', '==', currentItemName), limit(1));
             const itemSnapshot = await getDocs(itemRefQuery);
             productDocRef = doc(PRODUCTS_COLLECTION, itemSnapshot.docs[0].id);
+            const productData = itemSnapshot.docs[0].data();
             
             // LÓGICA DE ATUALIZAÇÃO PARA PROMOÇÃO
-            const currentPromoPrice = cachedProductData.melhorPrecoPromo || Infinity;
+            const currentPromoPrice = productData.melhorPrecoPromo || Infinity;
             if (isPromo && pricePaid < currentPromoPrice) {
                 updateFields.melhorPrecoPromo = pricePaid;
                 updateFields.melhorMercadoPromo = marketName;
             }
 
             // LÓGICA DE ATUALIZAÇÃO PARA REGULAR
-            const currentRegularPrice = cachedProductData.melhorPrecoRegular || Infinity;
+            const currentRegularPrice = productData.melhorPrecoRegular || Infinity;
             if (!isPromo && pricePaid < currentRegularPrice) {
                 updateFields.melhorPrecoRegular = pricePaid;
                 updateFields.melhorMercadoRegular = marketName;
@@ -293,46 +293,36 @@ const setupProductHistoryListener = () => {
 };
 
 // Renderiza o histórico de produtos a partir do cache e itens ativos
-const renderProductHistory = async () => {
-    try {
-        // Busca itens ativos na lista de compras
-        const q = query(SHOPPING_LIST_COLLECTION);
-        const snapshot = await getDocs(q); 
-        const activeItems = new Set();
-        snapshot.forEach(doc => activeItems.add(doc.data().nome));
+const renderProductHistory = async (activeItems) => {
+    
+    productHistoryUI.innerHTML = '';
+    
+    // Ordena os produtos do cache alfabeticamente
+    const sortedProducts = Array.from(productCache.values()).sort((a, b) => a.nome.localeCompare(b.nome));
 
-        productHistoryUI.innerHTML = '';
-        
-        // Ordena os produtos do cache alfabeticamente
-        const sortedProducts = Array.from(productCache.values()).sort((a, b) => a.nome.localeCompare(b.nome));
+    sortedProducts.forEach((product) => {
+        const productName = product.nome;
+        const isItemActive = activeItems.has(productName);
 
-        sortedProducts.forEach((product) => {
-            const productName = product.nome;
-            const isItemActive = activeItems.has(productName);
+        const tag = document.createElement('label');
+        tag.className = 'product-tag';
 
-            const tag = document.createElement('label');
-            tag.className = 'product-tag';
+        if (isItemActive) {
+            tag.classList.add('disabled-tag');
+        }
 
-            if (isItemActive) {
-                tag.classList.add('disabled-tag');
-            }
+        const displayName = capitalize(productName);
+        // Garante que se o item estiver ativo, o checkbox aparece 'checked' e 'disabled'
+        const checkboxDisabledAttr = isItemActive ? 'disabled' : '';
+        const checkboxCheckedAttr = isItemActive ? 'checked' : ''; 
 
-            const displayName = capitalize(productName);
-            const checkboxDisabledAttr = isItemActive ? 'disabled' : '';
-            const checkboxCheckedAttr = isItemActive ? 'checked' : ''; 
+        tag.innerHTML = `
+            <input type="checkbox" ${checkboxDisabledAttr} ${checkboxCheckedAttr} onclick="addFromHistory(event, '${productName}')">
+            ${displayName}
+        `;
 
-            tag.innerHTML = `
-                <input type="checkbox" ${checkboxDisabledAttr} ${checkboxCheckedAttr} onclick="addFromHistory(event, '${productName}')">
-                ${displayName}
-            `;
-
-            productHistoryUI.appendChild(tag);
-        });
-
-    } catch (error) {
-        console.error("Erro ao renderizar o histórico de produtos:", error);
-        productHistoryUI.innerHTML = `<p style="color: red;">Não foi possível renderizar o histórico.</p>`;
-    }
+        productHistoryUI.appendChild(tag);
+    });
 };
 
 
@@ -344,12 +334,16 @@ const setupShoppingListListener = () => {
 
     const q = query(SHOPPING_LIST_COLLECTION, orderBy('timestamp', 'desc'));
 
-    unsubscribeShoppingList = onSnapshot(q, (snapshot) => {
+    unsubscribeShoppingList = onSnapshot(q, async (snapshot) => {
 
-        if (snapshot.docChanges().length === snapshot.docs.length && snapshot.docChanges().every(change => change.type === 'added')) {
-             shoppingListUI.innerHTML = '';
-        }
+        // 1. Lógica para manter os itens ativos
+        const activeItems = new Set();
+        snapshot.docs.forEach(doc => activeItems.add(doc.data().nome));
 
+        // 2. Renderiza o histórico com os itens ativos atualizados
+        renderProductHistory(activeItems);
+
+        // 3. Processa as mudanças na Lista de Compras
         snapshot.docChanges().forEach((change) => {
             const itemId = change.doc.id;
             const item = change.doc.data();
@@ -358,7 +352,7 @@ const setupShoppingListListener = () => {
             
             // OTIMIZAÇÃO: Acessa o preço do cache (productCache)
             const productData = productCache.get(itemName);
-            const bestPriceHint = formatPriceHint(productData);
+            const bestPriceHint = formatPriceHint(productData); // Usa o helper de formatação
 
             if (change.type === 'added' || change.type === 'modified') {
                 let existingLi = document.getElementById(`item-${itemId}`);
@@ -378,12 +372,14 @@ const setupShoppingListListener = () => {
                     li.className = 'shopping-item';
                     li.innerHTML = newLiHtml;
 
+                    // Adiciona o novo item no topo da lista
                     if (shoppingListUI.firstChild) {
                         shoppingListUI.insertBefore(li, shoppingListUI.firstChild);
                     } else {
                         shoppingListUI.appendChild(li);
                     }
                 } else if (change.type === 'modified' && existingLi) {
+                    // Atualiza o conteúdo se for uma modificação (ex: preço)
                     existingLi.innerHTML = newLiHtml;
                 }
             }
@@ -396,8 +392,10 @@ const setupShoppingListListener = () => {
             }
         });
 
-        // CORREÇÃO DE REATIVIDADE: Chama a renderização do histórico após qualquer mudança 
-        renderProductHistory(); 
+        // Se a lista de compras atual estiver vazia, garante que o HTML esteja limpo
+        if (snapshot.docs.length === 0) {
+            shoppingListUI.innerHTML = '';
+        }
 
     }, (error) => {
         console.error("Erro no Listener principal do Firestore:", error);
@@ -409,6 +407,7 @@ const setupShoppingListListener = () => {
 // Configuração dos Event Listeners Iniciais (Execução Final)
 // =================================================================
 
+// Exporta as funções para serem acessíveis pelos eventos 'onclick' no HTML globalmente
 window.markAsBought = openBuyModal;
 window.deleteItem = deleteItem;
 window.addFromHistory = addFromHistory;
