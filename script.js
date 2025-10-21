@@ -404,6 +404,13 @@ const setupShoppingListListener = () => {
         // Não é necessário chamar renderProductHistory() aqui, pois o setupProductHistoryListener já faz isso
         // e garante que os checkboxes estejam corretos.
 
+        // ----------------------------------------------------
+        // NOVO: Chamada explícita para renderizar o histórico.
+        // Isso garante que se um item for REMOVIDO da lista de compras, 
+        // o checkbox dele no histórico seja habilitado imediatamente.
+        // ----------------------------------------------------
+        renderProductHistory();
+
     }, (error) => {
         console.error("Erro no Listener principal do Firestore:", error);
         shoppingListUI.innerHTML = `<li style="color: red;">Erro ao carregar a lista de compras.</li>`;
