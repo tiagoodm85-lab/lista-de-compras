@@ -19,72 +19,320 @@
 
 body {
     font-family: Arial, sans-serif;
-    background-color: var(--color-background); /* Usando variável */
-    color: var(--color-text-dark); /* Usando variável */
-    /* ... restante do código body */
+    background-color: var(--color-background);
+    color: var(--color-text-dark);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
 }
 
-/* Aplicação das variáveis */
-
 .container {
-    /* ... */
-    box-shadow: var(--shadow-main); /* Usando variável */
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+    background-color: var(--color-white);
+    box-shadow: var(--shadow-main);
     border-radius: 8px;
-    /* ... */
+    margin: 20px 10px;
 }
 
 h1 {
-    /* ... */
-    color: var(--color-primary); /* Usando variável */
-    /* ... */
+    text-align: center;
+    color: var(--color-primary);
+    margin-bottom: 20px;
 }
 
 h2 {
-    color: var(--color-primary); /* Usando variável */
-    border-bottom: 2px solid var(--color-primary); /* Usando variável */
-    /* ... */
+    color: var(--color-primary);
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: 5px;
+    margin-top: 30px;
 }
 
 .history-info {
-    color: var(--color-text-muted); /* Usando variável */
-    /* ... */
+    font-size: 0.9em;
+    color: var(--color-text-muted);
+    margin-bottom: 15px;
 }
 
-/* ... demais estilos ... */
+.input-area {
+    display: flex;
+    margin-bottom: 20px;
+}
+
+#itemNameInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+    font-size: 16px;
+}
 
 #addButton {
-    /* ... */
-    background-color: var(--color-success); /* Usando variável */
-    /* ... */
+    padding: 10px 15px;
+    background-color: var(--color-success);
+    color: var(--color-white);
+    border: none;
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
 }
 #addButton:hover {
-    background-color: #218838; /* Escurecer no hover (opcional: criar outra variável) */
+    background-color: #218838;
 }
 
 /* Lista de Compras (Itens) */
 
+#shoppingList {
+    list-style: none;
+    padding: 0;
+}
+
 .shopping-item {
-    /* ... */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    background-color: var(--color-light-gray);
+    border-radius: var(--border-radius);
     border-left: 5px solid var(--color-primary); /* Destaque azul para itens na lista */
+    transition: background-color 0.2s;
+}
+
+.item-info {
+    flex-grow: 1;
+}
+
+.item-name {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.price-hint {
+    font-size: 0.9em;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+.item-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.buy-button, .delete-button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: background-color 0.2s;
 }
 
 .buy-button {
     background-color: var(--color-warning); /* Amarelo/Laranja de destaque */
     color: var(--color-text-dark); /* Texto escuro no botão claro */
 }
+.buy-button:hover {
+    background-color: #e0b400;
+}
 
 .delete-button {
     background-color: var(--color-danger); /* Vermelho */
-    color: var(--color-white); /* Texto branco */
+    color: var(--color-white);
+}
+.delete-button:hover {
+    background-color: #c82333;
 }
 
-/* ... Garanta que todos os estilos de cor e sombra utilizem as variáveis ... */
+
+/* MODAL STYLES */
+
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 10; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto; /* 15% from the top and centered */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Could be more or less, depending on screen size */
+    max-width: 400px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-main);
+    position: relative;
+}
+
+.close-button {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.modal-content input[type="number"],
+.modal-content input[type="text"],
+.modal-content select,
+.modal-content button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Garante que padding e borda não aumentem o tamanho final */
+}
+
+.modal-content button#confirmBuy {
+    background-color: var(--color-success);
+    color: var(--color-white);
+    font-size: 1.1em;
+}
+
+/* NOVO: Estilo para a área de adicionar novo mercado */
+#newMarketArea {
+    margin-top: -10px; /* Reduz o espaço após o select */
+    margin-bottom: 5px;
+}
+
+/* NOVO: Estilo para a mensagem de carregamento */
+.loading {
+    color: var(--color-primary);
+    text-align: center;
+    padding: 10px;
+    font-style: italic;
+}
+
+
+/* HISTÓRICO DE PRODUTOS (TAGS) */
+
+.product-tag-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px; /* Espaço entre os itens do histórico */
+}
 
 .product-tag {
-    /* ... */
-    background-color: var(--color-light-gray); /* Cinza claro */
+    flex-grow: 1; /* Permite que o label ocupe o máximo de espaço */
+    display: inline-block;
+    padding: 8px 12px;
+    background-color: var(--color-light-gray);
+    color: var(--color-text-dark);
+    border-radius: var(--border-radius);
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: 1px solid #ddd;
+    margin-right: 5px; /* Espaço entre o tag e o botão de delete */
+}
+
+.product-tag:hover {
+    background-color: #dde1e5;
 }
 
 .delete-history-btn {
-    color: var(--color-danger); /* Vermelho */
+    background: none;
+    border: none;
+    color: var(--color-danger); /* Cor vermelha para indicar exclusão */
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 5px;
+    margin-left: 5px;
+    transition: opacity 0.2s;
+}
+
+.delete-history-btn:hover {
+    opacity: 0.8;
+}
+
+/* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+    
+    .input-area {
+        flex-direction: column; /* Empilha input e botão */
+        gap: 10px;
+    }
+    
+    .input-area input[type="text"],
+    .input-area button {
+        width: 100%; /* Ocupa a largura total */
+        font-size: 1em; /* Tamanho de fonte padrão */
+        padding: 12px; /* Aumenta a área de toque */
+    }
+
+    /* Ajustes na lista principal */
+    .shopping-item {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px 10px;
+        gap: 8px; /* Espaçamento entre os elementos empilhados */
+    }
+
+    .item-info {
+        width: 100%;
+    }
+
+    .item-name {
+        font-size: 1.1em; /* Nome do item mais visível */
+    }
+    
+    .price-hint {
+        font-size: 0.85em;
+        padding-top: 3px;
+    }
+
+    .item-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .buy-button, .delete-button {
+        width: 49%; /* Botões lado a lado */
+        margin-left: 0;
+        margin-top: 5px;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .modal-content {
+        /* Garante que o modal apareça mais alto na tela, 
+           minimizando problemas com o teclado virtual. */
+        margin: 5% auto; /* Reduz a margem superior */
+        width: 90%;
+        padding: 15px; /* Padding um pouco menor para economizar espaço */
+    }
 }

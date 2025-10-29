@@ -22,7 +22,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 
-// 2. CONFIGURAÇÕES (MANTER OU ATUALIZAR SUAS CHAVES)
+// 2. CONFIGURAÇÕES (MANTENHA OU ATUALIZE SUAS CHAVES)
 const firebaseConfig = {
     apiKey: "AIzaSyC5vHvRVvhtOOZjXfanQyibodcN4z8NYrE",
     authDomain: "lista-de-compras-399c7.firebaseapp.com",
@@ -36,23 +36,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// 4. REFERÊNCIAS DE COLEÇÕES (EXPORTÁVEIS)
-export const PRODUCTS_COLLECTION = collection(db, 'produtos');
-export const SHOPPING_LIST_COLLECTION = collection(db, 'lista_atual');
-export const MARKETS_COLLECTION = collection(db, 'mercados');
+// 4. DEFINIÇÕES DE COLEÇÕES (Exportadas para uso em script.js)
+const SHOPPING_LIST_COLLECTION = collection(db, 'shoppingList');
+const PRODUCTS_COLLECTION = collection(db, 'products'); // Histórico de preços
+const MARKETS_COLLECTION = collection(db, 'markets'); // Nova coleção para mercados
 
-// 5. FUNÇÕES DO FIRESTORE (EXPORTÁVEIS)
-// Isso centraliza todas as chamadas do Firestore para que 'script.js' fique mais limpo.
-export { 
-    doc,
-    onSnapshot, 
-    query, 
-    orderBy, 
-    where, 
-    limit, 
-    addDoc, 
-    updateDoc, 
-    deleteDoc, 
-    serverTimestamp, 
-    getDocs 
+// 5. EXPORTAÇÕES
+export {
+    SHOPPING_LIST_COLLECTION,
+    PRODUCTS_COLLECTION,
+    MARKETS_COLLECTION,
+    db, // Opcional, mas útil se precisar de mais funcionalidades do DB
+    doc, onSnapshot, query, orderBy, where, limit, 
+    addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs
 };
