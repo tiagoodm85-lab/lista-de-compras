@@ -153,16 +153,14 @@ const openBuyModal = async (itemId, itemName) => {
     buyModal.style.display = 'block';
 };
 
-// Deleta um item da lista
+// Deleta um item da lista (REMOVIDO A CONFIRMAÇÃO DE EXCLUSÃO)
 const deleteItem = async (itemId) => {
-    if (confirm('Tem certeza que deseja remover este item da lista?')) {
-        try {
-            const itemRef = doc(SHOPPING_LIST_COLLECTION, itemId);
-            await deleteDoc(itemRef);
-        } catch (error) {
-            console.error("Erro ao deletar item:", error);
-            alert("Não foi possível deletar o item.");
-        }
+    try {
+        const itemRef = doc(SHOPPING_LIST_COLLECTION, itemId);
+        await deleteDoc(itemRef);
+    } catch (error) {
+        console.error("Erro ao deletar item:", error);
+        alert("Não foi possível deletar o item.");
     }
 };
 
