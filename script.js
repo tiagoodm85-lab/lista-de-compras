@@ -1,10 +1,10 @@
-// script.js (Versão Otimizada e Profissional - FINAL)
+// script.js (Versão Otimizada e Profissional)
 
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import {
     PRODUCTS_COLLECTION, SHOPPING_LIST_COLLECTION, MARKETS_COLLECTION,
     doc, onSnapshot, query, orderBy, where, limit,
-    addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs
+    addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, db 
 } from './firebase.js';
 
 // =================================================================
@@ -13,21 +13,22 @@ import {
 
 // Cache para armazenar o histórico de produtos e evitar múltiplas chamadas ao Firestore
 const productCache = new Map(); 
+
 // Variável para armazenar o estado mais recente dos itens na lista de compras
 let activeShoppingItems = new Set(); 
-let unsubscribeShoppingList = null; // Listener da Lista de Compras
-let unsubscribeProductHistory = null; // Listener do Histórico
-let currentItemId = null;
-let currentItemName = null;
+let unsubscribeShoppingList = null;
+let unsubscribeProductHistory = null;
+let unsubscribeMarkets = null;
 
 // =================================================================
 // Referências de Elementos (DOM)
 // =================================================================
-
+// Referências de elementos DOM
 const shoppingListUI = document.getElementById('shoppingList');
 const itemNameInput = document.getElementById('itemNameInput');
 const addButton = document.getElementById('addButton');
 const productHistoryUI = document.getElementById('productHistoryArea');
+const loadingMessage = document.getElementById('loadingMessage'); // NOVO: Mensagem de carregamento
 
 const buyModal = document.getElementById('buyModal');
 const modalItemName = document.getElementById('modalItemName');
@@ -36,96 +37,194 @@ const marketSelect = document.getElementById('marketSelect');
 const promoCheckbox = document.getElementById('promoCheckbox');
 const confirmBuyButton = document.getElementById('confirmBuy');
 const closeButton = document.querySelector('.close-button');
+const newMarketArea = document.getElementById('newMarketArea'); // NOVO: Campo de novo mercado
+const newMarketInput = document.getElementById('newMarketInput'); // NOVO: Input de novo mercado
 
-// NOVO/CORRIGIDO: Referências para elementos da Etapa 4
-const loadingMessage = document.getElementById('loadingMessage'); 
-const newMarketArea = document.getElementById('newMarketArea');
-const newMarketInput = document.getElementById('newMarketInput'); // Garante que este existe
+
+let currentItemId = null;
+let currentItemName = null;
 
 // =================================================================
-// Funções de Ajuda
+// Funções de Ajuda (DOM Manipulation e Lógica)
 // =================================================================
 
-// Formata o valor para R$
-const formatPrice = (price) => {
-    if (typeof price === 'number') {
-        return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    }
-    return 'R$ 0,00';
+// Função para capitalizar o texto (nome do produto/mercado)
+const capitalize = (str) => {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 };
 
-// Capitaliza a primeira letra de uma string
-const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// Abre o Modal de Compra
+const openBuyModal = (itemId, itemName) => {
+    currentItemId = itemId;
+    currentItemName = itemName;
+    modalItemName.textContent = capitalize(itemName);
+    
+    // Reseta o modal
+    priceInput.value = '';
+    promoCheckbox.checked = false;
+    newMarketArea.style.display = 'none';
+    newMarketInput.value = '';
 
-// Fecha o modal e limpa os campos
+    // Chamada para carregar mercados (se ainda não estiver carregado, ou para garantir)
+    loadMarketsToSelect();
+    marketSelect.value = '';
+    
+    buyModal.style.display = 'block';
+};
+
+// Fecha o Modal de Compra
 const closeBuyModal = () => {
     buyModal.style.display = 'none';
-    priceInput.value = '';
-    marketSelect.value = '';
-    promoCheckbox.checked = false;
-    currentItemId = null;
-    currentItemName = null;
-    newMarketArea.style.display = 'none'; // Esconde a área de novo mercado
-    newMarketInput.value = ''; // Limpa o input
+};
+
+
+// Função para gerar o HTML do item da lista
+const renderItem = async (itemId, item, existingLi) => {
+    const itemNameNormalized = item.nome;
+    const itemNameDisplay = capitalize(item.nome);
+    const itemMarketDisplay = item.market ? `(${capitalize(item.market)})` : '';
+    // A data é opcional, deixei o display simples para não poluir
+    // const itemDate = item.timestamp ? new Date(item.timestamp.toDate()).toLocaleDateString('pt-BR') : '';
+
+    // 1. Sugestão de Preço (Best Price Hint) - LÓGICA ATUALIZADA (2 PREÇOS)
+    // O cache deve ser populado pelo setupProductHistoryListener
+    const priceHints = productCache.get(itemNameNormalized) || { 
+        regularPrice: null, regularMarket: null, promoPrice: null, promoMarket: null 
+    };
+    
+    let bestPriceHintHTML = '';
+    
+    // Preço Regular
+    if (priceHints.regularPrice) {
+        bestPriceHintHTML += `Mais Barato (Reg.): R$ ${priceHints.regularPrice.toFixed(2)} em ${capitalize(priceHints.regularMarket)}`;
+    }
+    
+    // Preço Promocional
+    if (priceHints.promoPrice) {
+        if (bestPriceHintHTML) {
+            bestPriceHintHTML += `<br>`; // Quebra de linha se já houver preço regular
+        }
+        bestPriceHintHTML += `Melhor Promoção: R$ ${priceHints.promoPrice.toFixed(2)} em ${capitalize(priceHints.promoMarket)}`;
+    }
+
+    if (bestPriceHintHTML) {
+        bestPriceHintHTML = `<p class="price-hint">${bestPriceHintHTML}</p>`;
+    }
+
+    const li = existingLi || document.createElement('li');
+    li.id = `item-${itemId}`;
+    li.className = 'shopping-item';
+    li.setAttribute('data-id', itemId);
+
+    // ESTRUTURA HTML ATUALIZADA: Item info + Container de Ações
+    li.innerHTML = `
+        <div class="item-info">
+            <span class="item-name">${itemNameDisplay}</span>
+            <span class="item-market">${itemMarketDisplay}</span>
+            ${bestPriceHintHTML}
+        </div>
+        <div class="item-actions">
+            <button class="options-button" data-action="toggleOptions" aria-label="Opções para ${itemNameDisplay}">⋮</button>
+            
+            <div class="action-buttons-group">
+                <button class="buy-button" data-action="buyItem" data-id="${itemId}">COMPREI</button>
+                <button class="delete-button" data-action="deleteItem" data-id="${itemId}">APAGAR</button>
+            </div>
+        </div>
+    `;
+
+    if (!existingLi) {
+        shoppingListUI.prepend(li); // Adiciona no topo
+    }
+
+    // Retorna a <li> atualizada
+    return li;
 };
 
 // =================================================================
-// Funções CRUD Principais (Lista de Compras)
+// 2. FUNÇÕES DO FIREBASE (CRIAÇÃO, DELEÇÃO, ATUALIZAÇÃO)
 // =================================================================
 
-// Adiciona um novo item à lista de compras
-const addItem = async () => {
-    const itemName = itemNameInput.value.trim().toLowerCase();
-    if (!itemName) return alert("Por favor, insira o nome de um item.");
+// Adicionar novo item à lista
+const addItem = async (itemNameFromHistory) => {
+    const itemName = itemNameFromHistory || itemNameInput.value.trim().toLowerCase();
+    
+    if (!itemName) {
+        alert("Por favor, insira o nome de um item.");
+        return;
+    }
+
+    // Verifica se o item já está na lista (para evitar duplicidade)
+    if (activeShoppingItems.has(itemName)) {
+        alert(`O item "${capitalize(itemName)}" já está na sua lista!`);
+        return;
+    }
 
     try {
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: itemName,
-            timestamp: serverTimestamp() // Usa timestamp do servidor
+            timestamp: serverTimestamp()
         });
-        itemNameInput.value = '';
+        itemNameInput.value = ''; // Limpa o input após adicionar
     } catch (error) {
         console.error("Erro ao adicionar item:", error);
-        alert("Erro ao adicionar item. Tente novamente.");
+        alert("Não foi possível adicionar o item. Verifique sua conexão.");
     }
 };
 
-// Remove um item da lista de compras
+// Lógica de Deleção (SEM CONFIRMAÇÃO)
 const deleteItem = async (itemId) => {
-    if (confirm("Tem certeza que deseja remover este item da lista?")) {
-        try {
-            await deleteDoc(doc(SHOPPING_LIST_COLLECTION, itemId));
-            // O listener onSnapshot cuidará da remoção do DOM
-        } catch (error) {
-            console.error("Erro ao deletar item:", error);
-            alert("Erro ao remover item. Tente novamente.");
-        }
+    try {
+        await deleteDoc(doc(SHOPPING_LIST_COLLECTION, itemId));
+        // O listener onSnapshot cuida da remoção visual da tela
+    } catch (error) {
+        console.error("Erro ao deletar item:", error);
+        alert("Não foi possível apagar o item. Tente novamente.");
     }
 };
 
-// Abre o modal de compra e busca o melhor preço
-const openBuyModal = async (itemId, itemName) => {
-    currentItemId = itemId;
-    currentItemName = itemName;
-    modalItemName.textContent = `Registrando compra para: ${capitalize(itemName)}`;
-    
-    // 1. Carrega os mercados e preenche o select
-    await loadMarketsToSelect();
+// Adicionar um item do histórico à lista
+// NOTE: Esta função agora é chamada diretamente pelo click handler (handleProductHistoryClick)
+// e usa a função addItem.
+// const addFromHistory = async (name) => { ... } - Removido pois é integrado ao addItem
 
-    // 2. Busca a sugestão de preço no cache
-    const cachedProduct = productCache.get(itemName);
-    if (cachedProduct && cachedProduct.bestPrice) {
-        // Preenche o campo de preço com o melhor preço encontrado
-        priceInput.value = cachedProduct.bestPrice;
-    } else {
-         priceInput.value = '';
+// Adicionar novo mercado (caso o usuário tenha selecionado a opção "__NEW_MARKET__")
+const addNewMarket = async (marketName) => {
+    try {
+        const newMarketRef = await addDoc(MARKETS_COLLECTION, {
+            nome: marketName,
+            timestamp: serverTimestamp()
+        });
+        console.log("Novo mercado adicionado:", marketName);
+        return marketName;
+    } catch (error) {
+        console.error("Erro ao adicionar novo mercado:", error);
+        alert("Não foi possível adicionar o novo mercado.");
+        return null;
     }
-
-    // 3. Abre o modal e define o foco no input
-    buyModal.style.display = 'block';
-    // CORREÇÃO ETAPA 4: Define o foco no primeiro campo de input para acessibilidade
-    priceInput.focus(); 
 };
+
+// Deleção de todo o histórico de um produto
+const deleteProductHistory = async (itemName) => {
+    try {
+        const q = query(PRODUCTS_COLLECTION, where('nome', '==', itemName));
+        const snapshot = await getDocs(q);
+        
+        const deletePromises = [];
+        snapshot.forEach((doc) => {
+            deletePromises.push(deleteDoc(doc.ref));
+        });
+        
+        await Promise.all(deletePromises);
+        console.log(`Todo histórico de preço para '${itemName}' apagado.`);
+        
+        // A remoção visual é tratada pelo listener (setupProductHistoryListener)
+    } catch (error) {
+        console.error("Erro ao apagar histórico do produto:", error);
+        alert("Não foi possível apagar o histórico. Tente novamente.");
+    }
+}
 
 // Lógica de Registro de Compra
 const confirmBuyHandler = async () => {
@@ -141,14 +240,15 @@ const confirmBuyHandler = async () => {
 
     let marketName = marketSelect.value;
     
+    // Lógica para Novo Mercado
     if (marketName === '__NEW_MARKET__') {
-        const newMarket = newMarketInput.value.trim().toLowerCase();
-        if (!newMarket) {
-            alert("Por favor, insira o nome do novo mercado.");
+        const newMarketName = newMarketInput.value.trim().toLowerCase();
+        if (!newMarketName) {
+            alert("Por favor, digite o nome do novo mercado.");
             return;
         }
-        // 1. Adiciona o novo mercado ao Firestore
-        marketName = await addMarket(newMarket);
+        marketName = newMarketName; // Usa o nome digitado como mercado
+        await addNewMarket(marketName);
     }
 
     if (!marketName) {
@@ -156,239 +256,193 @@ const confirmBuyHandler = async () => {
         return;
     }
 
-    // Cria o objeto do produto com o preço pago
-    const productData = {
-        nome: currentItemName,
-        preco: pricePaid,
-        mercado: marketName,
-        emPromocao: isPromo,
-        timestamp: serverTimestamp(),
-        // Para a lógica de sugestão, 'melhorPreco' e 'melhorMercado' são calculados 
-        // separadamente ou mantidos no histórico. Aqui salvamos apenas a compra.
-    };
-
     try {
-        // 1. Salva a compra no histórico (products)
-        await addDoc(PRODUCTS_COLLECTION, productData);
-
-        // 2. Remove o item da lista de compras (shoppingList)
-        await deleteDoc(doc(SHOPPING_LIST_COLLECTION, currentItemId));
-
-        alert(`Compra de ${capitalize(currentItemName)} registrada com sucesso em ${capitalize(marketName)} por ${formatPrice(pricePaid)}.`);
-
-    } catch (error) {
-        console.error("Erro ao registrar compra:", error);
-        alert("Erro ao registrar compra. Tente novamente.");
-    } finally {
-        closeBuyModal();
-    }
-};
-
-
-// =================================================================
-// Funções CRUD Secundárias (Mercados e Histórico)
-// =================================================================
-
-// Adiciona um novo mercado
-const addMarket = async (marketName) => {
-    try {
-        const docRef = await addDoc(MARKETS_COLLECTION, {
-            nome: marketName,
+        // 1. Adicionar o registro na coleção de Histórico de Preços (products)
+        await addDoc(PRODUCTS_COLLECTION, {
+            nome: currentItemName,
+            preco: pricePaid,
+            market: marketName,
+            isPromo: isPromo,
             timestamp: serverTimestamp()
         });
-        return marketName; // Retorna o nome para uso no registro de compra
+
+        // 2. Apagar o item da lista de compras principal
+        await deleteDoc(doc(SHOPPING_LIST_COLLECTION, currentItemId));
+
+        // 3. Fechar o modal
+        closeBuyModal();
+
     } catch (error) {
-        console.error("Erro ao adicionar mercado:", error);
-        alert("Erro ao adicionar mercado. Tente novamente.");
-        return null;
+        console.error("Erro ao confirmar compra:", error);
+        alert("Não foi possível registrar a compra. Tente novamente.");
     }
 };
 
-// Carrega os mercados para o select do modal
+
+// =================================================================
+// Funções de Listener (Dados em Tempo Real)
+// =================================================================
+
+// NOVO: Listener de Mercados (Para popular o select do modal)
 const loadMarketsToSelect = async () => {
+    // Se já houver um listener, cancela para não duplicar
+    if (unsubscribeMarkets) unsubscribeMarkets(); 
+    
     marketSelect.innerHTML = '<option value="">Selecione o Mercado</option>';
-    try {
-        const q = query(MARKETS_COLLECTION, orderBy('nome'));
-        const marketSnapshot = await getDocs(q);
+    
+    // Adiciona a opção de novo mercado no topo
+    const newMarketOption = document.createElement('option');
+    newMarketOption.value = '__NEW_MARKET__';
+    newMarketOption.textContent = '➕ Adicionar Novo Mercado...';
+    marketSelect.appendChild(newMarketOption);
 
-        const newMarketOption = document.createElement('option');
-        newMarketOption.value = '__NEW_MARKET__';
-        newMarketOption.textContent = '➕ Adicionar Novo Mercado...';
-        marketSelect.appendChild(newMarketOption);
+    const q = query(MARKETS_COLLECTION, orderBy('nome'));
 
-        marketSnapshot.forEach((doc) => {
+    // Cria o listener em tempo real para mercados
+    unsubscribeMarkets = onSnapshot(q, (snapshot) => {
+        // Limpa todas as opções, exceto o 'Selecione' e o 'Adicionar Novo'
+        while (marketSelect.options.length > 1) {
+            marketSelect.remove(1); 
+        }
+
+        snapshot.forEach((doc) => {
             const market = doc.data();
             const option = document.createElement('option');
             option.value = market.nome; 
             option.textContent = capitalize(market.nome);
-            marketSelect.appendChild(option);
+            // Insere antes do "Adicionar Novo Mercado"
+            marketSelect.insertBefore(option, newMarketOption);
         });
-    } catch (error) {
-        console.error("Erro ao carregar mercados:", error);
-    }
+    }, (error) => {
+        console.error("Erro no Listener de Mercados:", error);
+    });
 };
 
-// Adiciona um item do histórico de volta à lista de compras
-const addFromHistory = async (itemName) => {
-    if (activeShoppingItems.has(itemName)) {
-        alert(`${capitalize(itemName)} já está na sua lista de compras.`);
-        return false;
-    }
-    
-    try {
-        await addDoc(SHOPPING_LIST_COLLECTION, {
-            nome: itemName,
-            timestamp: serverTimestamp()
-        });
-        return true; // Sucesso
-    } catch (error) {
-        console.error("Erro ao adicionar do histórico:", error);
-        alert("Não foi possível adicionar o item do histórico. Verifique sua conexão.");
-        return false; // Falha
-    }
-};
+// RENDERIZAÇÃO DO HISTÓRICO VISUAL
+const loadProductHistory = () => {
+    productHistoryUI.innerHTML = ''; // Limpa a UI
 
-// Deleta um produto do histórico de preços
-const deleteProductHistory = async (productId, itemName) => {
-    if (confirm(`Tem certeza que deseja remover o registro de compra de ${capitalize(itemName)} do histórico?`)) {
-        try {
-            await deleteDoc(doc(PRODUCTS_COLLECTION, productId));
-            // O listener do histórico cuidará da atualização do DOM/Cache
-        } catch (error) {
-            console.error("Erro ao deletar do histórico:", error);
-            alert("Erro ao remover o item do histórico.");
+    // Ordena as chaves (nomes dos produtos) em ordem alfabética
+    const sortedProductNames = Array.from(productCache.keys()).sort();
+
+    sortedProductNames.forEach(name => {
+        // Pega os 2 preços do cache (já processados)
+        const prices = productCache.get(name);
+        const itemNameDisplay = capitalize(name);
+
+        let priceDisplay = '';
+        
+        // Exibe Preço Regular
+        if (prices.regularPrice) {
+            priceDisplay += `R$ ${prices.regularPrice.toFixed(2)} (Reg. em ${capitalize(prices.regularMarket)})`;
         }
-    }
-};
+        
+        // Exibe Preço Promocional
+        if (prices.promoPrice) {
+            if (priceDisplay) {
+                priceDisplay += ` | `;
+            }
+            priceDisplay += `R$ ${prices.promoPrice.toFixed(2)} (Promo. em ${capitalize(prices.promoMarket)})`;
+        }
 
+        if (!priceDisplay) {
+            priceDisplay = 'Preço não registrado.';
+        }
 
-// =================================================================
-// Funções de Renderização e Listeners
-// =================================================================
-
-// Busca e retorna a sugestão de preço no cache
-const getPriceHint = (itemName) => {
-    const cached = productCache.get(itemName);
-    if (!cached || !cached.bestPrice) {
-        return `<span class="price-hint">Sem histórico de preço.</span>`;
-    }
-    const priceText = formatPrice(cached.bestPrice);
-    const marketText = capitalize(cached.bestMarket);
-    const promoText = cached.isPromo ? ' (PROMO)' : '';
+        // Estrutura HTML do item do histórico
+        const historyItemHTML = `
+            <div class="product-tag-wrapper">
+                <label class="product-tag" data-action="addFromHistory" data-name="${name}">
+                    <span class="product-name">${itemNameDisplay}</span>
+                    <span class="product-price-info">${priceDisplay}</span>
+                </label>
+                <button class="delete-history-btn" data-action="deleteHistoryItem" data-name="${name}" aria-label="Apagar todo histórico de ${itemNameDisplay}">
+                    &times;
+                </button>
+            </div>
+        `;
+        productHistoryUI.innerHTML += historyItemHTML;
+    });
     
-    return `<span class="price-hint">Melhor preço: ${priceText} em ${marketText}${promoText}</span>`;
-};
-
-// Renderiza um único item da lista de compras
-const renderShoppingItem = (itemId, item) => {
-    const itemNameDisplay = capitalize(item.nome);
-    const priceHintHTML = getPriceHint(item.nome);
-
-    let li = document.getElementById(`item-${itemId}`);
-    if (!li) {
-        li = document.createElement('li');
-        li.id = `item-${itemId}`;
-        li.className = 'shopping-item';
-        shoppingListUI.appendChild(li); // Adiciona ao final (ordenado pelo Firebase)
+    // Se o histórico estiver vazio
+    if (productHistoryUI.innerHTML === '') {
+        productHistoryUI.innerHTML = `<p class="history-empty">Nenhum item comprado ainda.</p>`;
     }
-
-    li.innerHTML = `
-        <div class="item-info">
-            <span class="item-name">${itemNameDisplay}</span>
-            ${priceHintHTML}
-        </div>
-        <div class="item-actions">
-            <button class="buy-button" onclick="markAsBought('${itemId}', '${item.nome}')">Comprei!</button>
-            <button class="delete-button" onclick="deleteItem('${itemId}')">X</button>
-        </div>
-    `;
 };
 
-// Listener para o Histórico de Produtos (Popula o Cache)
+
+// Listener do Histórico (Popula o Cache com 2 Preços)
 const setupProductHistoryListener = () => {
     if (unsubscribeProductHistory) {
         unsubscribeProductHistory();
     }
-    
-    // Query: Pega todas as compras ordenadas pelo nome, depois pelo menor preço
-    // O índice composto é: nome (asc), preco (asc)
-    const q = query(PRODUCTS_COLLECTION, orderBy('nome', 'asc'), orderBy('preco', 'asc'));
+
+    // Consulta que pega TUDO, pois a agregação (2 melhores preços) será feita no cliente
+    const q = query(PRODUCTS_COLLECTION, orderBy('nome')); 
 
     unsubscribeProductHistory = onSnapshot(q, (snapshot) => {
-        productCache.clear();
-        productHistoryUI.innerHTML = '';
+        // Limpa o cache para reconstruir o histórico
+        productCache.clear(); 
         
-        let currentItemName = null;
-        let lastWrapper = null;
-        
-        // 1. Popula o Cache de Preços
-        // Itera sobre o snapshot ordenado para encontrar o melhor preço para cada produto
-        snapshot.docs.forEach((doc) => {
-            const product = doc.data();
-            const nome = product.nome;
+        const historyData = new Map(); // Key: Item Name, Value: Array of price objects
 
-            if (!productCache.has(nome)) {
-                // O primeiro item que encontramos é o melhor preço (devido à ordenação)
-                productCache.set(nome, {
-                    bestPrice: product.preco,
-                    bestMarket: product.mercado,
-                    isPromo: product.emPromocao,
-                    lastPurchase: product.timestamp ? product.timestamp.toDate() : new Date()
-                });
+        snapshot.forEach((doc) => {
+            const item = doc.data();
+            const nome = item.nome;
+            const preco = item.preco;
+            const isPromo = item.isPromo || false;
+            const market = item.market;
+            
+            if (!historyData.has(nome)) {
+                historyData.set(nome, []);
             }
+            historyData.get(nome).push({ preco, isPromo, market });
         });
-        
-        // 2. Renderiza o Histórico Visual
-        // Itera novamente, desta vez renderizando todos os registros
-        snapshot.docs.forEach((doc) => {
-            const product = doc.data();
-            const nome = product.nome;
-            const id = doc.id;
 
-            // Se for um novo produto, cria um novo wrapper
-            if (nome !== currentItemName) {
-                if (lastWrapper) productHistoryUI.appendChild(lastWrapper);
-                
-                lastWrapper = document.createElement('div');
-                lastWrapper.className = 'product-tag-wrapper';
-                
-                const itemNameDisplay = capitalize(nome);
-                const tag = document.createElement('span');
-                
-                // Renderiza o item do histórico como um "Tag" clicável
-                tag.className = 'product-tag';
-                // Usando onclick para adicionar do histórico
-                tag.setAttribute('onclick', `addFromHistory('${nome}')`); 
-                tag.innerHTML = `${itemNameDisplay} (${formatPrice(product.preco)})`;
-                
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-history-btn';
-                deleteBtn.setAttribute('onclick', `deleteProductHistory('${id}', '${nome}')`);
-                deleteBtn.innerHTML = '&times;';
-                deleteBtn.title = 'Remover este registro de compra';
-                
-                lastWrapper.appendChild(tag);
-                lastWrapper.appendChild(deleteBtn);
+        // 2. Processa o historyData para encontrar o Melhor Preço (Regular e Promo) e Histórico Visual
+        historyData.forEach((prices, nome) => {
+            let bestRegular = { price: Infinity, market: null };
+            let bestPromo = { price: Infinity, market: null };
 
-                currentItemName = nome;
-            }
-            // NOTA: Para simplificar, estamos exibindo apenas o último registro de cada produto no histórico.
-            // Para exibir TODAS as compras de um produto, a lógica precisaria ser revisada.
-            // O código atual mostra o último preço encontrado para cada NOME ÚNICO de produto (pela ordenação).
+            // Itera sobre todos os preços para encontrar os melhores
+            prices.forEach(p => {
+                if (p.preco > 0) { // Garante que o preço seja válido
+                    if (!p.isPromo) {
+                        // Preço Regular
+                        if (p.preco < bestRegular.price) {
+                            bestRegular.price = p.preco;
+                            bestRegular.market = p.market;
+                        }
+                    } else {
+                        // Preço em Promoção
+                        if (p.preco < bestPromo.price) {
+                            bestPromo.price = p.preco;
+                            bestPromo.market = p.market;
+                        }
+                    }
+                }
+            });
+            
+            // Armazena no cache (o cache agora armazena o objeto de 2 preços)
+            productCache.set(nome, {
+                regularPrice: isFinite(bestRegular.price) ? bestRegular.price : null,
+                regularMarket: isFinite(bestRegular.price) ? bestRegular.market : null,
+                promoPrice: isFinite(bestPromo.price) ? bestPromo.price : null,
+                promoMarket: isFinite(bestPromo.price) ? bestPromo.market : null
+            });
         });
+
+        // 3. Recarrega o histórico visual após popular o cache
+        loadProductHistory();
         
-        if (lastWrapper) productHistoryUI.appendChild(lastWrapper); // Adiciona o último
-        
-        if (snapshot.docs.length === 0) {
-            productHistoryUI.innerHTML = `<p class="history-info">Nenhum item comprado registrado. Registre uma compra para ver o histórico de preços.</p>`;
-        }
-        
+        // Força a atualização da lista de compras para atualizar os 'hints' de preço
+        setupShoppingListListener();
+
     }, (error) => {
         console.error("Erro no Listener do Histórico:", error);
         productHistoryUI.innerHTML = `<p style="color: red;">Não foi possível carregar o histórico.</p>`;
     });
 };
-
 
 // Listener Principal (Lista de Compras Atual)
 const setupShoppingListListener = () => {
@@ -398,59 +452,133 @@ const setupShoppingListListener = () => {
 
     const q = query(SHOPPING_LIST_COLLECTION, orderBy('timestamp', 'desc'));
     
-    // ETAPA 4: Mostra a mensagem de carregamento antes de buscar os dados
-    loadingMessage.style.display = 'block';
+    // NOVO: Mostra a mensagem de carregamento antes de tentar carregar
+    if (loadingMessage) loadingMessage.style.display = 'block';
 
     // Cria o novo listener e armazena a função de cancelamento
     unsubscribeShoppingList = onSnapshot(q, async (snapshot) => {
-        
-        // ETAPA 4: Esconde a mensagem de carregamento após a primeira busca
-        loadingMessage.style.display = 'none'; 
-        
-        // Limpa e repopula a lista no DOM (mais simples para lidar com modificações/ordenação)
-        shoppingListUI.innerHTML = '';
-        activeShoppingItems.clear();
 
+        if (loadingMessage) loadingMessage.style.display = 'none'; // Esconde após a primeira carga
+
+        // Lógica para garantir que a lista seja limpa se não houver itens
+        activeShoppingItems.clear(); // Limpa o Set de itens ativos
+        
+        // Verifica se a lista estava vazia
         if (snapshot.docs.length === 0) {
-            shoppingListUI.innerHTML = `<li>Lista de compras vazia!</li>`;
+            shoppingListUI.innerHTML = '';
         }
 
-        // Processa os documentos
-        snapshot.docs.forEach((doc) => {
-            const item = doc.data();
-            const itemId = doc.id;
-            activeShoppingItems.add(item.nome); // Atualiza o Set de itens ativos
-            renderShoppingItem(itemId, item);
+        // Processa as mudanças no snapshot
+        snapshot.docChanges().forEach(async (change) => {
+            const itemId = change.doc.id;
+            const item = change.doc.data();
+
+            // Adiciona o nome do item no Set para verificação de duplicidade
+            activeShoppingItems.add(item.nome);
+            
+            let existingLi = document.getElementById(`item-${itemId}`);
+
+            if (change.type === 'added' || change.type === 'modified') {
+                
+                // Chamada da função de renderização atualizada
+                renderItem(itemId, item, existingLi);
+
+            } else if (change.type === 'removed') {
+                // Remove o item do DOM se existir
+                if (existingLi) {
+                    existingLi.remove();
+                }
+            }
         });
+        
+        // Se após o processamento, o snapshot estiver vazio e não houver itens renderizados, limpa.
+        if (snapshot.docs.length === 0 && shoppingListUI.children.length > 0) {
+            shoppingListUI.innerHTML = '';
+        }
 
     }, (error) => {
         console.error("Erro no Listener principal do Firestore:", error);
-        // ETAPA 4: Esconde a mensagem de carregamento mesmo em caso de erro
-        loadingMessage.style.display = 'none'; 
+        if (loadingMessage) loadingMessage.style.display = 'none';
         shoppingListUI.innerHTML = `<li style="color: red;">Erro ao carregar a lista de compras.</li>`;
     });
 };
+
+
+// =================================================================
+// Delegação de Eventos
+// =================================================================
+
+// NOVO: Função para lidar com o clique na lista
+const handleShoppingListClick = (event) => {
+    const target = event.target;
+    // Encontra o item <li> pai que contém o data-id
+    const li = target.closest('.shopping-item');
+    if (!li) return;
+
+    const itemId = li.getAttribute('data-id');
+    const itemNameElement = li.querySelector('.item-name');
+    const itemName = itemNameElement ? itemNameElement.textContent : '';
+    const action = target.getAttribute('data-action');
+    
+    // Lógica para o botão de opções (três pontos)
+    if (action === 'toggleOptions') {
+        // Fecha as opções de todos os outros itens
+        document.querySelectorAll('.shopping-item').forEach(item => {
+            if (item !== li) {
+                item.classList.remove('active-options');
+            }
+        });
+        // Alterna as opções do item clicado
+        li.classList.toggle('active-options');
+        
+    } else if (action === 'buyItem') {
+        // Chamada de função que abre o modal
+        openBuyModal(itemId, itemName);
+        li.classList.remove('active-options'); // Esconde os botões após a ação
+    } else if (action === 'deleteItem') {
+        // Usa a função deleteItem (SEM CONFIRMAÇÃO)
+        deleteItem(itemId);
+        // O listener onSnapshot removerá a LI
+    }
+};
+
+// Delegação de Eventos para o HISTÓRICO
+const handleProductHistoryClick = (event) => {
+    const target = event.target.closest('[data-action="addFromHistory"], [data-action="deleteHistoryItem"]');
+    if (!target) return;
+
+    const action = target.getAttribute('data-action');
+    const itemName = target.getAttribute('data-name');
+    
+    if (action === 'addFromHistory') {
+        // Adiciona o item (o histórico não tem ID do documento, só o nome)
+        // O nome está em minúsculas
+        addItem(itemName); 
+    } else if (action === 'deleteHistoryItem') {
+        // Ação de deleção de histórico
+        if (confirm(`Tem certeza que deseja apagar TODO o histórico de preços para o item '${capitalize(itemName)}'? Esta ação é IRREVERSÍVEL.`)) {
+             deleteProductHistory(itemName);
+        }
+    }
+};
+
 
 // =================================================================
 // Configuração dos Event Listeners Iniciais (Execução Final)
 // =================================================================
 
-// CORREÇÃO CRÍTICA: Exporta as funções para serem acessíveis pelos eventos 'onclick' no HTML globalmente
+// Exporta as funções para serem acessíveis pelos eventos 'onclick' no HTML globalmente
 window.markAsBought = openBuyModal;
 window.deleteItem = deleteItem;
-window.addFromHistory = addFromHistory;
-window.deleteProductHistory = deleteProductHistory;
 
 
 if (!window.isShoppingListInitialized) {
 
-    // Listeners do Input/Botão de Adicionar
-    addButton.addEventListener('click', addItem);
+    addButton.addEventListener('click', () => addItem());
     itemNameInput.addEventListener('keyup', (event) => {
         if (event.key === 'Enter') addItem();
     });
 
-    // Listeners do Modal
     confirmBuyButton.addEventListener('click', confirmBuyHandler);
     closeButton.addEventListener('click', closeBuyModal);
     window.addEventListener('click', (event) => {
@@ -458,8 +586,15 @@ if (!window.isShoppingListInitialized) {
             closeBuyModal();
         }
     });
+    
+    // NOVO: Listener de Delegação de Eventos para a Lista Principal
+    shoppingListUI.addEventListener('click', handleShoppingListClick);
+    
+    // NOVO: Listener de Delegação de Eventos para o Histórico
+    productHistoryUI.addEventListener('click', handleProductHistoryClick);
 
-    // Listener para novo mercado (ETAPA 4)
+
+    // Listener para novo mercado (mantido)
     marketSelect.addEventListener('change', () => {
         if (marketSelect.value === '__NEW_MARKET__') {
             newMarketArea.style.display = 'block';
@@ -472,7 +607,9 @@ if (!window.isShoppingListInitialized) {
 
     // Ordem de inicialização:
     setupProductHistoryListener(); // 1. Começa a popular o cache de preços
-    setupShoppingListListener();   // 2. Começa a popular a lista de compras (que usa o cache)
+    setupShoppingListListener();   // 2. Começa a popular a lista de compras
+    // Note: loadMarketsToSelect() é chamado dentro de openBuyModal
+    
     window.isShoppingListInitialized = true;
 
 } else {
