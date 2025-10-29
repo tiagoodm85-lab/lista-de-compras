@@ -301,9 +301,6 @@ h2 {
         margin-top: 0;
     }
 
-    /* ======================================= */
-    /* **CORREÇÃO UX DO MODAL NO MOBILE** */
-    /* ======================================= */
     .modal-content {
         /* Garante que o modal apareça mais alto na tela, 
            minimizando problemas com o teclado virtual. */
@@ -311,4 +308,40 @@ h2 {
         width: 90%;
         padding: 15px; /* Padding um pouco menor para economizar espaço */
     }
+}
+
+.product-tag-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px; /* Espaço entre os itens do histórico */
+}
+
+.product-tag-wrapper .product-tag {
+    flex-grow: 1; /* Permite que o label ocupe o máximo de espaço */
+    /* Mantém os estilos existentes do .product-tag aqui */
+}
+
+.delete-history-btn {
+    background: none;
+    border: none;
+    color: #dc3545; /* Cor vermelha para indicar exclusão */
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 5px;
+    margin-left: 10px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    line-height: 1; /* Alinha o ícone */
+}
+
+.delete-history-btn:hover {
+    opacity: 1;
+    color: #c82333;
+}
+
+/* Garante que o checkbox e o texto do label fiquem alinhados */
+.product-tag span {
+    margin-left: 5px;
+    display: inline-block;
+    vertical-align: middle;
 }

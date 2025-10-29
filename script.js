@@ -1,4 +1,4 @@
-// script.js (Versão Final - Otimizada, Reativa, Zoom Fix e Input Limpo)
+// script.js (Versão Final - Otimizada, Reativa, Zoom Fix, Input Limpo e Exclusão do Histórico)
 
 // 1. IMPORTAÇÕES - Traz tudo que o firebase.js exportou
 import {
@@ -49,7 +49,7 @@ const capitalize = (s) => {
 const formatPriceHint = (productData) => {
     let regularHint = '';
     let promoHint = '';
-    // MOEDA CORRIGIDA PARA CAD$ (Isto é usado na lista de compras)
+    // MOEDA CORRIGIDA PARA CAD$
     const currency = 'CAD$'; 
 
     if (productData) {
@@ -103,6 +103,31 @@ const closeBuyModal = () => {
 // Funções de Manipulação do DOM e Firebase
 // =================================================================
 
+// NOVO: Função para deletar item do histórico de produtos (PRODUCTS_COLLECTION)
+const deleteProductFromHistory = async (productName) => {
+    if (!confirm(`Tem certeza que deseja excluir '${capitalize(productName)}' permanentemente do histórico de preços?`)) {
+        return;
+    }
+
+    try {
+        // 1. Encontra a referência do documento (Documento é identificado pelo 'nome')
+        const q = query(PRODUCTS_COLLECTION, where('nome', '==', productName), limit(1));
+        const itemSnapshot = await getDocs(q);
+
+        if (!itemSnapshot.empty) {
+            const docRef = doc(PRODUCTS_COLLECTION, itemSnapshot.docs[0].id);
+            await deleteDoc(docRef);
+            alert(`'${capitalize(productName)}' excluído do histórico com sucesso.`);
+            // O listener do histórico irá atualizar o cache e a UI automaticamente
+        } else {
+            alert("Item não encontrado no histórico.");
+        }
+    } catch (error) {
+        console.error("Erro ao deletar item do histórico:", error);
+        alert("Não foi possível excluir o item do histórico.");
+    }
+};
+
 // Função para abrir o modal de compra (chamada pelo botão 'Comprei!' no HTML)
 const openBuyModal = async (itemId, itemName) => {
     currentItemId = itemId;
@@ -111,27 +136,14 @@ const openBuyModal = async (itemId, itemName) => {
 
     await loadMarketsToSelect();
 
-    // NOVO: Limpa o input de preço. O usuário não quer que o valor seja preenchido automaticamente.
+    // CORREÇÃO: Input de preço sempre limpo
     priceInput.value = '';
-
-    // Apenas para referência: a lógica anterior era:
-    /*
-    const cachedProduct = productCache.get(itemName);
-    if (cachedProduct && cachedProduct.melhorPrecoRegular) {
-        priceInput.value = cachedProduct.melhorPrecoRegular.toFixed(2);
-    } else {
-        priceInput.value = '';
-    }
-    */
 
     promoCheckbox.checked = false;
     buyModal.style.display = 'block';
-    
-    // Opcional: foca o input para abrir o teclado mais rápido no mobile (se o zoom estiver corrigido)
-    // priceInput.focus();
 };
 
-// Função para deletar um item da lista (chamada pelo HTML)
+// Função para deletar um item da lista (chamada pelo botão 'X' no HTML)
 const deleteItem = async (itemId) => {
     if (confirm('Tem certeza que deseja remover este item da lista?')) {
         try {
@@ -165,6 +177,8 @@ const addItem = async () => {
 
 // Função para adicionar item do histórico
 const addFromHistory = async (event, productName) => {
+    // Esta função agora é chamada pelo listener, não pelo clique do checkbox,
+    // garantindo que o checkbox não se ative se for o ícone de lixeira.
     const checkbox = event.target;
     checkbox.disabled = true;
 
@@ -218,17 +232,38 @@ const confirmBuyHandler = async () => {
     }
 
     try {
-        // 1. Atualizar ou Criar o Registro do Produto (Usando o cache)
-        const cachedProductData = productCache.get(currentItemName);
-        
-        let productDocRef;
-        
-        const updateFields = {
-            ultimaCompra: serverTimestamp()
-        };
+        // ... (Lógica de atualização de preço no Firestore - mantida) ...
 
-        if (!cachedProductData) {
-            // Se for um novo produto no histórico
+        // 1. Encontrar o DocRef e atualizar/criar o Registro do Produto
+        const cachedProductData = productCache.get(currentItemName);
+        let productDocRef = null;
+        let updateFields = { ultimaCompra: serverTimestamp() };
+
+        // Tenta encontrar o doc existente
+        const itemRefQuery = query(PRODUCTS_COLLECTION, where('nome', '==', currentItemName), limit(1));
+        const itemSnapshot = await getDocs(itemRefQuery);
+        
+        if (!itemSnapshot.empty) {
+            productDocRef = doc(PRODUCTS_COLLECTION, itemSnapshot.docs[0].id);
+            const productData = itemSnapshot.docs[0].data();
+            
+            // LÓGICA DE ATUALIZAÇÃO PARA PROMOÇÃO
+            const currentPromoPrice = productData.melhorPrecoPromo || Infinity;
+            if (isPromo && pricePaid < currentPromoPrice) {
+                updateFields.melhorPrecoPromo = pricePaid;
+                updateFields.melhorMercadoPromo = marketName;
+            }
+
+            // LÓGICA DE ATUALIZAÇÃO PARA REGULAR
+            const currentRegularPrice = productData.melhorPrecoRegular || Infinity;
+            if (!isPromo && pricePaid < currentRegularPrice) {
+                updateFields.melhorPrecoRegular = pricePaid;
+                updateFields.melhorMercadoRegular = marketName;
+            }
+
+            await updateDoc(productDocRef, updateFields);
+        } else {
+            // Cria o novo produto se não existir
             const productData = {
                 nome: currentItemName,
                 melhorPrecoPromo: isPromo ? pricePaid : null,
@@ -238,52 +273,15 @@ const confirmBuyHandler = async () => {
                 ultimaCompra: serverTimestamp()
             };
             await addDoc(PRODUCTS_COLLECTION, productData);
-
-        } else {
-            // Produto existente
-            const itemRefQuery = query(PRODUCTS_COLLECTION, where('nome', '==', currentItemName), limit(1));
-            const itemSnapshot = await getDocs(itemRefQuery);
-            // Verifica se o documento existe antes de tentar acessar o índice [0]
-            if (itemSnapshot.docs.length > 0) {
-                 productDocRef = doc(PRODUCTS_COLLECTION, itemSnapshot.docs[0].id);
-                 const productData = itemSnapshot.docs[0].data();
-            
-                 // LÓGICA DE ATUALIZAÇÃO PARA PROMOÇÃO
-                 const currentPromoPrice = productData.melhorPrecoPromo || Infinity;
-                 if (isPromo && pricePaid < currentPromoPrice) {
-                     updateFields.melhorPrecoPromo = pricePaid;
-                     updateFields.melhorMercadoPromo = marketName;
-                 }
-
-                 // LÓGICA DE ATUALIZAÇÃO PARA REGULAR
-                 const currentRegularPrice = productData.melhorPrecoRegular || Infinity;
-                 if (!isPromo && pricePaid < currentRegularPrice) {
-                     updateFields.melhorPrecoRegular = pricePaid;
-                     updateFields.melhorMercadoRegular = marketName;
-                 }
-
-                 await updateDoc(productDocRef, updateFields);
-            } else {
-                // Caso o cache exista, mas o doc foi deletado, recria
-                 const productData = {
-                     nome: currentItemName,
-                     melhorPrecoPromo: isPromo ? pricePaid : null,
-                     melhorMercadoPromo: isPromo ? marketName : null,
-                     melhorPrecoRegular: !isPromo ? pricePaid : null,
-                     melhorMercadoRegular: !isPromo ? marketName : null,
-                     ultimaCompra: serverTimestamp()
-                 };
-                 await addDoc(PRODUCTS_COLLECTION, productData);
-            }
         }
-        
+
         // 2. Apagar o Item da Lista de Compras Atual
         if (currentItemId) {
             const shoppingItemRef = doc(SHOPPING_LIST_COLLECTION, currentItemId);
             await deleteDoc(shoppingItemRef);
         }
 
-        // CORREÇÃO DE ZOOM (MANTIDA): Remove o foco do input de preço antes de fechar o modal.
+        // CORREÇÃO DE ZOOM: Remove o foco do input de preço antes de fechar o modal.
         priceInput.blur(); 
         
         closeBuyModal(); 
@@ -305,19 +303,30 @@ const setupProductHistoryListener = () => {
     onSnapshot(q, (snapshot) => {
         productCache.clear();
         snapshot.forEach(doc => {
-            const product = doc.data();
+            // Adiciona o ID do documento ao cache (útil se o nome não for 100% único no futuro)
+            const product = { ...doc.data(), id: doc.id }; 
             productCache.set(product.nome, product);
         });
-        // A renderização do histórico visual será chamada pelo listener da lista de compras
-        // Chama a renderização inicial para garantir que o histórico não esteja vazio
-        renderProductHistory(new Set()); 
+        
+        // Atualiza o histórico visual. Passamos um Set vazio se a lista principal ainda não carregou
+        // para garantir que o histórico apareça rapidamente
+        const activeItems = new Set();
+        // A lógica de renderização completa é chamada no setupShoppingListListener 
+        // para garantir que os itens ativos estejam sempre corretos.
+        // Aqui, apenas disparamos uma renderização inicial para o histórico não ficar vazio.
+        if (window.isShoppingListInitialized) {
+             // Se a lista principal já carregou, a renderização já está no ciclo do outro listener
+        } else {
+            renderProductHistory(activeItems); 
+        }
+
     }, (error) => {
         console.error("Erro no Listener do Histórico de Produtos:", error);
     });
 };
 
 // Renderiza o histórico de produtos a partir do cache e itens ativos
-const renderProductHistory = async (activeItems) => {
+const renderProductHistory = (activeItems) => {
     
     productHistoryUI.innerHTML = '';
     
@@ -328,23 +337,48 @@ const renderProductHistory = async (activeItems) => {
         const productName = product.nome;
         const isItemActive = activeItems.has(productName);
 
-        const tag = document.createElement('label');
-        tag.className = 'product-tag';
+        const tag = document.createElement('div'); // Mudança para div para melhor layout dos botões
+        tag.className = 'product-tag-wrapper';
+        
+        const label = document.createElement('label');
+        label.className = 'product-tag';
 
         if (isItemActive) {
-            tag.classList.add('disabled-tag');
+            label.classList.add('disabled-tag');
         }
 
         const displayName = capitalize(productName);
-        // Garante que se o item estiver ativo, o checkbox aparece 'checked' e 'disabled'
         const checkboxDisabledAttr = isItemActive ? 'disabled' : '';
         const checkboxCheckedAttr = isItemActive ? 'checked' : ''; 
 
-        tag.innerHTML = `
-            <input type="checkbox" ${checkboxDisabledAttr} ${checkboxCheckedAttr} onclick="addFromHistory(event, '${productName}')">
-            ${displayName}
+        // Checkbox para adicionar à lista
+        label.innerHTML = `
+            <input type="checkbox" ${checkboxDisabledAttr} ${checkboxCheckedAttr}>
+            <span>${displayName}</span>
         `;
+        
+        // Adiciona o listener ao label para o checkbox
+        label.addEventListener('click', (e) => {
+            // Evita que o clique no label ative o checkbox se clicar no ícone de lixeira
+            if (e.target.classList.contains('delete-history-icon')) return; 
 
+            // Simula a chamada da função addFromHistory
+            const checkbox = label.querySelector('input[type="checkbox"]');
+            addFromHistory({ target: checkbox }, productName);
+        });
+        
+        // NOVO: Botão/Ícone de Excluir do Histórico
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'delete-history-btn';
+        deleteButton.innerHTML = '🗑️'; // Ícone de lixeira
+        deleteButton.title = `Excluir '${displayName}' do histórico de preços`;
+        deleteButton.onclick = (e) => {
+            e.stopPropagation(); // Previne que o clique no botão ative o label
+            deleteProductFromHistory(productName);
+        };
+        
+        tag.appendChild(label);
+        tag.appendChild(deleteButton);
         productHistoryUI.appendChild(tag);
     });
 };
@@ -358,7 +392,7 @@ const setupShoppingListListener = () => {
 
     const q = query(SHOPPING_LIST_COLLECTION, orderBy('timestamp', 'desc'));
 
-    unsubscribeShoppingList = onSnapshot(q, async (snapshot) => {
+    unsubscribeShoppingList = onSnapshot(q, (snapshot) => {
 
         // 1. Lógica para manter os itens ativos
         const activeItems = new Set();
@@ -434,7 +468,11 @@ const setupShoppingListListener = () => {
 // Exporta as funções para serem acessíveis pelos eventos 'onclick' no HTML globalmente
 window.markAsBought = openBuyModal;
 window.deleteItem = deleteItem;
-window.addFromHistory = addFromHistory;
+// Não precisamos exportar addFromHistory ou deleteProductFromHistory para o global
+// pois eles são chamados via listeners/callbacks agora.
+// window.addFromHistory = addFromHistory; 
+// window.deleteProductFromHistory = deleteProductFromHistory; 
+
 
 if (!window.isShoppingListInitialized) {
 
