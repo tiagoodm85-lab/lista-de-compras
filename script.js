@@ -1,4 +1,4 @@
-// script.js (Versão Final: Filtro de Mercado, Ordenação por Preço Regular e Referências Corrigidas)
+// script.js (Versão Final: Opção de filtro "Sem Mercado" removida)
 
 // 1. IMPORTAÇÕES DO FIREBASE
 import {
@@ -402,17 +402,20 @@ const renderMarketFilters = () => {
     marketFilterAreaUI.innerHTML = '';
     
     // 1. Opção 'Todos'
+    // A chave 'SEM_MERCADO' NÃO é mais adicionada aqui.
     let allMarkets = ['TODOS', ...marketListCache]; 
     
-    // Adiciona a opção especial para itens sem histórico
-    allMarkets.push('SEM_MERCADO');
-
     allMarkets.forEach(market => {
+        // Ignora a chave de filtro 'SEM_MERCADO' na interface
+        if (market === 'SEM_MERCADO') return;
+
         const tag = document.createElement('div');
         tag.className = 'filter-market-tag';
-        tag.textContent = capitalize(market).replace('_', ' '); // Ex: 'Sem Mercado'
+        tag.textContent = capitalize(market).replace('_', ' '); // Ex: 'Super C'
         tag.dataset.market = market; // Armazena o valor do filtro
 
+        // A classe 'no-market' é mantida apenas para a tag de filtro 'SEM_MERCADO' 
+        // caso a lista fosse reintroduzida, mas ela não é renderizada.
         if (market === 'SEM_MERCADO') {
             tag.classList.add('no-market');
         }
@@ -578,7 +581,7 @@ const setupShoppingListListener = () => {
         });
         activeShoppingItems = currentActiveItems;
 
-        // 1. FILTRAGEM (LÓGICA ATUALIZADA)
+        // 1. FILTRAGEM (LÓGICA CORRETA)
         if (currentFilterMarket !== 'TODOS') {
              shoppingItems = shoppingItems.filter(item => {
                 const bestMarket = getBestRegularMarket(item.nome);
@@ -586,12 +589,12 @@ const setupShoppingListListener = () => {
                 // Inclui o item se:
                 // a) O melhor mercado regular for o filtro ATUALMENTE selecionado.
                 // OU
-                // b) O item for 'SEM_MERCADO' (item novo/sem histórico) E o filtro atual não for 'SEM_MERCADO'.
+                // b) O item for 'SEM_MERCADO' (item novo/sem histórico).
+                //    (Esta é a regra que garante que itens novos SEMPRE apareçam, exceto no filtro 'TODOS' que é o padrão).
                 const isCurrentMarket = bestMarket === currentFilterMarket;
                 const isNoMarketItem = bestMarket === 'SEM_MERCADO';
-                const includeNoMarket = isNoMarketItem && currentFilterMarket !== 'SEM_MERCADO';
 
-                return isCurrentMarket || includeNoMarket;
+                return isCurrentMarket || isNoMarketItem;
              });
         }
         
@@ -626,8 +629,6 @@ const setupShoppingListListener = () => {
             
             if (currentFilterMarket === 'TODOS') {
                 message.innerHTML = `<div class="item-info"><span class="item-name">🎉 Lista vazia! Que tal adicionar algo?</span></div>`;
-            } else if (currentFilterMarket === 'SEM_MERCADO') {
-                message.innerHTML = `<div class="item-info"><span class="item-name">✅ Nenhum item novo. Tente outro filtro.</span></div>`;
             } else {
                  message.innerHTML = `<div class="item-info"><span class="item-name">✅ Nada para comprar no ${capitalize(currentFilterMarket)}.</span></div>`;
             }
