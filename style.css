@@ -67,7 +67,7 @@ h2 {
     background-color: #218838;
 }
 
-/* --- NOVOS ESTILOS DA ÁREA DE FILTRO --- */
+/* --- ESTILOS DA ÁREA DE FILTRO --- */
 .filter-area p {
     font-size: 0.9em;
     color: #6c757d;
@@ -143,11 +143,23 @@ h2 {
     align-items: center;
     padding: 15px 0;
     border-bottom: 1px solid #eee;
+    transition: background-color 0.2s; /* Transição para o novo estilo */
 }
 
 .shopping-item:last-child {
     border-bottom: none;
 }
+
+/* NOVO ESTILO: Item sem histórico/mercado vinculado */
+.shopping-item.no-market-item {
+    background-color: #fcf8e3; /* Amarelo/bege muito claro */
+    border-left: 5px solid #ffeb3b; /* Linha sutil de marcação na lateral */
+    padding-left: 10px; 
+}
+.shopping-item.no-market-item .item-name {
+    color: #8a6d3b; /* Cor de texto levemente mais escura/sutil */
+}
+
 
 .item-info {
     flex-grow: 1;
@@ -421,6 +433,11 @@ h2 {
         align-items: flex-start;
         padding: 12px 10px;
         gap: 8px; 
+    }
+    
+    .shopping-item.no-market-item {
+        padding-left: 10px; /* Garante que o padding lateral permaneça (para a linha de marcação) */
+        border-left: 5px solid #ffeb3b; 
     }
 
     .buy-button, .delete-button {

@@ -404,8 +404,7 @@ const renderMarketFilters = () => {
     // 1. Opção 'Todos'
     let allMarkets = ['TODOS', ...marketListCache]; 
     
-    // Adiciona uma opção especial para itens sem histórico (sem mercado vinculado)
-    // Usamos 'SEM_MERCADO' como uma chave de filtro, capitalizada para exibição
+    // Adiciona a opção especial para itens sem histórico
     allMarkets.push('SEM_MERCADO');
 
     allMarkets.forEach(market => {
@@ -579,28 +578,38 @@ const setupShoppingListListener = () => {
         });
         activeShoppingItems = currentActiveItems;
 
-        // 1. FILTRAGEM (USANDO currentFilterMarket)
+        // 1. FILTRAGEM (LÓGICA ATUALIZADA)
         if (currentFilterMarket !== 'TODOS') {
              shoppingItems = shoppingItems.filter(item => {
                 const bestMarket = getBestRegularMarket(item.nome);
                 
-                // Retorna TRUE se o melhor mercado regular for o mercado selecionado
-                // Isso inclui itens novos/sem histórico quando 'SEM_MERCADO' está ativo.
-                return bestMarket === currentFilterMarket;
+                // Inclui o item se:
+                // a) O melhor mercado regular for o filtro ATUALMENTE selecionado.
+                // OU
+                // b) O item for 'SEM_MERCADO' (item novo/sem histórico) E o filtro atual não for 'SEM_MERCADO'.
+                const isCurrentMarket = bestMarket === currentFilterMarket;
+                const isNoMarketItem = bestMarket === 'SEM_MERCADO';
+                const includeNoMarket = isNoMarketItem && currentFilterMarket !== 'SEM_MERCADO';
+
+                return isCurrentMarket || includeNoMarket;
              });
         }
-
+        
         // 2. ORDENAÇÃO POR MELHOR MERCADO REGULAR
+        // Prioriza: 1. Mercado Selecionado > 2. Outros Mercados (Alfabética) > 3. Sem Mercado
         shoppingItems.sort((a, b) => {
-            // Usa 'zzz' para garantir que "SEM_MERCADO" (Z-A) venha depois dos mercados com nomes
-            const marketA = getBestRegularMarket(a.nome) === 'SEM_MERCADO' ? 'zzz' : getBestRegularMarket(a.nome);
-            const marketB = getBestRegularMarket(b.nome) === 'SEM_MERCADO' ? 'zzz' : getBestRegularMarket(b.nome);
+            const marketA = getBestRegularMarket(a.nome);
+            const marketB = getBestRegularMarket(b.nome);
             
-            // Ordem Primária: Mercado (Alfabética)
+            // 1. SEM MERCADO sempre no final
+            if (marketA === 'SEM_MERCADO' && marketB !== 'SEM_MERCADO') return 1;
+            if (marketA !== 'SEM_MERCADO' && marketB === 'SEM_MERCADO') return -1;
+            
+            // 2. ORDEM ALFABÉTICA para os mercados existentes
             if (marketA < marketB) return -1;
             if (marketA > marketB) return 1;
 
-            // Ordem Secundária: Nome do Item (Alfabética)
+            // 3. Ordem Secundária: Nome do Item (Alfabética)
             if (a.nome < b.nome) return -1;
             if (a.nome > b.nome) return 1;
 
@@ -631,10 +640,17 @@ const setupShoppingListListener = () => {
                 
                 const productData = productCache.get(itemName);
                 const bestPriceHint = formatPriceHint(productData);
+                const bestMarket = getBestRegularMarket(itemName);
 
                 const li = document.createElement('li');
                 li.id = `item-${itemId}`;
                 li.className = 'shopping-item';
+                
+                // ADICIONA CLASSE DE MARCAÇÃO para itens sem mercado
+                if (bestMarket === 'SEM_MERCADO') {
+                     li.classList.add('no-market-item');
+                }
+
                 li.innerHTML = `
                     <div class="item-info">
                         <span class="item-name">${itemNameDisplay}</span>
