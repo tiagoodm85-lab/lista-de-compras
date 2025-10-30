@@ -67,6 +67,69 @@ h2 {
     background-color: #218838;
 }
 
+/* --- NOVOS ESTILOS DA ÁREA DE FILTRO --- */
+.filter-area p {
+    font-size: 0.9em;
+    color: #6c757d;
+    margin: 0 0 8px 0;
+}
+
+#marketFilterArea {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.filter-market-tag {
+    /* Estilo base do botão/tag */
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #dee2e6;
+    border-radius: 20px; /* Borda mais arredondada para parecer um tag */
+    cursor: pointer;
+    font-size: 0.85em; /* Fonte menor para mobile */
+    transition: background-color 0.2s, border-color 0.2s;
+    user-select: none;
+    line-height: 1; /* Garante que o padding controle a altura */
+    min-width: 60px; /* Tamanho mínimo para ser fácil de clicar */
+    text-align: center;
+}
+
+.filter-market-tag:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+/* Estilo para o filtro ATIVO */
+.filter-market-tag.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+    font-weight: bold;
+}
+
+.filter-market-tag.active:hover {
+    background-color: #0056b3;
+}
+
+/* Estilo especial para o filtro "Sem Mercado" */
+.filter-market-tag.no-market {
+    background-color: #ffc107;
+    color: #333;
+    border-color: #e0a800;
+}
+.filter-market-tag.no-market.active {
+    background-color: #e0a800;
+    color: white;
+}
+/* --- FIM ESTILOS DA ÁREA DE FILTRO --- */
+
+
 /* --- ESTILOS DA LISTA PRINCIPAL --- */
 #shoppingList {
     list-style: none;
@@ -271,7 +334,7 @@ h2 {
     cursor: pointer;
 }
 
-/* --- NOVOS ESTILOS PARA CHECKBOXES DE MERCADO --- */
+/* --- ESTILOS DO MODAL: CHECKBOXES DE MERCADO --- */
 #marketCheckboxes {
     display: flex;
     flex-wrap: wrap;
