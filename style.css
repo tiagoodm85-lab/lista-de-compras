@@ -1,26 +1,7 @@
-/* style.css (Otimizado com Variáveis CSS) */
-
-:root {
-    /* Cores Principais */
-    --color-primary: #007bff; /* Azul */
-    --color-success: #28a745; /* Verde (Adicionar) */
-    --color-warning: #ffc107; /* Amarelo (Comprei/Comprar) */
-    --color-danger: #dc3545; /* Vermelho (Remover/Excluir) */
-    --color-background: #f4f4f9;
-    --color-text-dark: #333;
-    --color-text-muted: #6c757d;
-    --color-white: #fff;
-    --color-light-gray: #e9ecef;
-
-    /* Tamanhos e Sombras */
-    --shadow-main: 0 4px 12px rgba(0, 0, 0, 0.1);
-    --border-radius: 4px;
-}
-
 body {
     font-family: Arial, sans-serif;
-    background-color: var(--color-background); /* Usando variável */
-    color: var(--color-text-dark); /* Usando variável */
+    background-color: #f4f4f9;
+    color: #333;
     margin: 0;
     padding: 0;
     display: flex;
@@ -28,44 +9,35 @@ body {
     min-height: 100vh;
 }
 
-/* Aplicação das variáveis */
-
 .container {
     width: 100%;
     max-width: 600px;
     padding: 20px;
-    background-color: var(--color-white);
-    box-shadow: var(--shadow-main); /* Usando variável */
+    background-color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     margin: 20px 10px;
 }
 
 h1 {
     text-align: center;
-    color: var(--color-primary); /* Usando variável */
+    color: #007bff;
     margin-bottom: 20px;
 }
 
 h2 {
-    color: var(--color-primary); /* Usando variável */
-    border-bottom: 2px solid var(--color-primary); /* Usando variável */
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
     padding-bottom: 5px;
     margin-top: 30px;
 }
 
 .history-info {
     font-size: 0.9em;
-    color: var(--color-text-muted); /* Usando variável */
+    color: #6c757d;
     margin-bottom: 15px;
 }
 
-.loading {
-    text-align: center;
-    color: var(--color-primary);
-    padding: 10px 0;
-    font-style: italic;
-}
-/* Estilos para a área de input (mantidos) */
 .input-area {
     display: flex;
     margin-bottom: 20px;
@@ -81,141 +53,181 @@ h2 {
 
 #addButton {
     padding: 10px 15px;
-    background-color: var(--color-success); /* Usando variável */
-    color: var(--color-white);
+    background-color: #28a745;
+    color: white;
     border: none;
     border-radius: 0 4px 4px 0;
     cursor: pointer;
     font-size: 16px;
+    transition: background-color 0.2s;
 }
+
 #addButton:hover {
-    background-color: #218838; /* Escurecer no hover (opcional: criar outra variável) */
+    background-color: #218838;
 }
 
-/* Lista de Compras (Itens) */
-
+/* LISTA PRINCIPAL */
 #shoppingList {
     list-style: none;
     padding: 0;
+    margin: 0;
 }
 
 .shopping-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    background-color: var(--color-light-gray);
-    border-radius: var(--border-radius);
-    border-left: 5px solid var(--color-primary); /* Destaque azul para itens na lista */
-    transition: background-color 0.3s ease;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+    /* Ajuste para quebra de linha no mobile */
 }
 
-.shopping-item:hover {
-    background-color: #e2e6ea;
+.shopping-item:last-child {
+    border-bottom: none;
 }
 
 .item-info {
     flex-grow: 1;
-    margin-right: 10px;
+    margin-right: 15px;
+    /* Permite que o nome e preço ocupem 100% da largura em layout de coluna */
 }
 
 .item-name {
-    font-weight: bold;
     font-size: 1.1em;
-    display: block; /* Para garantir que o market fique abaixo ou ao lado de forma clara */
-    color: var(--color-text-dark);
-}
-
-.item-market {
-    font-size: 0.9em;
-    color: var(--color-text-muted);
-    margin-left: 5px;
+    font-weight: bold;
+    display: block; /* Garante que o nome ocupe a linha */
 }
 
 .price-hint {
-    font-size: 0.8em;
-    color: #009933; /* Um verde um pouco mais forte para o preço */
-    margin-top: 3px;
-    line-height: 1.4;
-}
-
-/* NOVO: Estilos para o grupo de ações dos botões */
-.item-actions {
-    display: flex;
-    align-items: center;
-    position: relative; /* Para posicionar o grupo de botões */
-}
-
-.options-button {
-    background: none;
-    border: none;
-    font-size: 1.5em;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 5px 10px;
-    line-height: 0;
-}
-
-.action-buttons-group {
-    display: flex;
-    gap: 8px;
-    /* Inicia oculto */
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-    transition: all 0.2s ease-in-out;
-}
-
-.shopping-item.active-options .action-buttons-group {
-    /* Fica visível quando a classe active-options é adicionada pelo JS */
-    opacity: 1;
-    width: auto;
-    margin-left: 10px;
+    display: block; /* CRUCIAL para que o <br> funcione e as dicas fiquem em linhas separadas */
+    font-size: 0.9em;
+    color: #6c757d;
+    margin-top: 5px;
+    line-height: 1.4; /* Melhora a leitura quando tem duas linhas */
 }
 
 .buy-button, .delete-button {
     padding: 8px 12px;
     border: none;
-    border-radius: var(--border-radius);
+    border-radius: 4px;
     cursor: pointer;
-    font-weight: bold;
     font-size: 0.9em;
-    white-space: nowrap; /* Não quebrar a linha */
-}
-
-.buy-button {
-    background-color: var(--color-warning); /* Amarelo/Laranja de destaque */
-    color: var(--color-text-dark); /* Texto escuro no botão claro */
+    margin-left: 10px;
+    transition: background-color 0.2s;
+    flex-shrink: 0;
 }
 
 .delete-button {
-    background-color: var(--color-danger); /* Vermelho */
-    color: var(--color-white);
+    background-color: #dc3545;
+    color: white;
 }
 
-/* Estilos de Modal (Mantidos) */
+.delete-button:hover {
+    background-color: #c82333;
+}
+
+.buy-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.buy-button:hover {
+    background-color: #0056b3;
+}
+
+/* HISTÓRICO DE PRODUTOS */
+#productHistoryArea {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.product-tag {
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 6px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.product-tag:hover:not(.disabled-tag) {
+    background-color: #dee2e6;
+}
+
+.product-tag input[type="checkbox"] {
+    margin-right: 5px;
+    pointer-events: all; /* Garante que o checkbox é clicável */
+    cursor: pointer;
+}
+
+/* Estilo para itens que já estão na lista */
+.disabled-tag {
+    opacity: 0.7;
+    background-color: #d1e7dd; /* Cor suave para indicar ativo */
+    color: #0f5132;
+    cursor: default;
+}
+
+.disabled-tag input[type="checkbox"] {
+    /* O JS já desabilita o checkbox, mas esta regra reforça a aparência */
+    opacity: 0.8;
+}
+
+/* LÓGICA DO MODAL */
 .modal {
     display: none; 
     position: fixed; 
-    z-index: 1000; 
+    z-index: 10; 
     left: 0;
     top: 0;
-    width: 100%; 
-    height: 100%; 
-    overflow: auto; 
-    background-color: rgba(0,0,0,0.6); 
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4); 
 }
 
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto; 
+    margin: 15% auto; /* Ajuste inicial no PC */
     padding: 20px;
     border: 1px solid #888;
-    width: 80%; 
-    max-width: 400px; 
+    width: 80%; /* Largura padrão no PC */
+    max-width: 400px;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    position: relative;
+}
+
+.modal-content label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+.modal-content input[type="number"],
+.modal-content select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.modal-content button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    font-size: 1.1em;
 }
 
 .close-button {
@@ -223,6 +235,7 @@ h2 {
     float: right;
     font-size: 28px;
     font-weight: bold;
+    cursor: pointer;
 }
 
 .close-button:hover,
@@ -230,102 +243,6 @@ h2 {
     color: #000;
     text-decoration: none;
     cursor: pointer;
-}
-
-.modal-content label {
-    display: block;
-    margin-top: 10px;
-    font-weight: bold;
-}
-
-.modal-content input[type="number"],
-.modal-content input[type="text"],
-.modal-content select {
-    width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box; 
-}
-
-#confirmBuy {
-    width: 100%;
-    padding: 10px;
-    background-color: var(--color-success);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    margin-top: 10px;
-}
-
-/* Histórico de Produtos (product history) */
-
-#productHistoryArea {
-    margin-top: 15px;
-}
-
-.product-tag-wrapper {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px; /* Espaço entre os itens do histórico */
-    background-color: var(--color-white);
-    border: 1px solid #ddd;
-    border-radius: var(--border-radius);
-    padding: 5px;
-}
-
-.product-tag {
-    flex-grow: 1; /* Permite que o label ocupe o máximo de espaço */
-    display: block; /* Ocupa a largura total dentro do flex container */
-    padding: 5px 10px;
-    cursor: pointer;
-}
-
-.product-tag:hover {
-    background-color: #f8f8f8;
-    border-radius: var(--border-radius);
-}
-
-.product-name {
-    font-weight: bold;
-    color: var(--color-primary);
-    display: block;
-}
-
-.product-price-info {
-    font-size: 0.9em;
-    color: var(--color-text-muted);
-    display: block;
-    margin-top: 2px;
-    line-height: 1.4;
-}
-
-.history-empty {
-    color: var(--color-text-muted);
-    font-style: italic;
-    text-align: center;
-    padding: 10px;
-}
-
-.delete-history-btn {
-    background: none;
-    border: none;
-    color: var(--color-danger); /* Cor vermelha para indicar exclusão */
-    cursor: pointer;
-    font-size: 1.1em;
-    padding: 5px;
-    margin-left: 10px;
-    line-height: 1; /* Alinha o X */
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-.delete-history-btn:hover {
-    opacity: 1;
 }
 
 /* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
@@ -346,9 +263,9 @@ h2 {
     
     .input-area input[type="text"],
     .input-area button {
-        width: 100%; /* Ocupa a largura total */
-        font-size: 1em; /* Tamanho de fonte padrão */
-        padding: 12px; /* Aumenta a área de toque */
+        width: 100%;
+        font-size: 1em; 
+        padding: 12px;
     }
 
     /* Ajustes na lista principal */
@@ -356,22 +273,15 @@ h2 {
         flex-direction: column;
         align-items: flex-start;
         padding: 12px 10px;
-        gap: 8px; /* Espaçamento entre os elementos empilhados */
+        gap: 8px; 
     }
 
     .item-info {
         width: 100%;
-        order: 1; /* Garante que as informações fiquem em cima */
     }
 
-    .item-actions {
-        width: 100%;
-        justify-content: flex-end; /* Move o botão de opções para a direita no mobile */
-        order: 2; /* Garante que os botões fiquem embaixo */
-    }
-    
     .item-name {
-        font-size: 1.1em; /* Nome do item mais visível */
+        font-size: 1.1em;
     }
     
     .price-hint {
@@ -379,20 +289,59 @@ h2 {
         padding-top: 3px;
     }
 
-    .action-buttons-group {
-        /* No mobile, queremos os botões COMPREI/APAGAR na mesma linha */
-        flex-grow: 1;
-        justify-content: flex-end;
+    .buy-button, .delete-button {
+        width: 100%; /* Botões ocupam a largura total no mobile */
+        margin-left: 0;
+        margin-top: 5px;
+        padding: 10px;
     }
     
-    .shopping-item.active-options .action-buttons-group {
-        width: auto;
-        margin-left: 10px;
+    /* Ajuste para botões na mesma linha se a tela permitir */
+    .shopping-item > button:first-of-type {
+        margin-top: 0;
     }
-    
+
     .modal-content {
+        /* Garante que o modal apareça mais alto na tela, 
+           minimizando problemas com o teclado virtual. */
         margin: 5% auto; /* Reduz a margem superior */
         width: 90%;
         padding: 15px; /* Padding um pouco menor para economizar espaço */
     }
+}
+
+.product-tag-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px; /* Espaço entre os itens do histórico */
+}
+
+.product-tag-wrapper .product-tag {
+    flex-grow: 1; /* Permite que o label ocupe o máximo de espaço */
+    /* Mantém os estilos existentes do .product-tag aqui */
+}
+
+.delete-history-btn {
+    background: none;
+    border: none;
+    color: #dc3545; /* Cor vermelha para indicar exclusão */
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 5px;
+    margin-left: 10px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    line-height: 1; /* Alinha o ícone */
+}
+
+.delete-history-btn:hover {
+    opacity: 1;
+    color: #c82333;
+}
+
+/* Garante que o checkbox e o texto do label fiquem alinhados */
+.product-tag span {
+    margin-left: 5px;
+    display: inline-block;
+    vertical-align: middle;
 }

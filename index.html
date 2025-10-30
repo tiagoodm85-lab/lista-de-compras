@@ -12,39 +12,35 @@
         <h1>Lista de Compras Compartilhada</h1>
 
         <div class="input-area">
-            <input type="text" id="itemNameInput" placeholder="Nome do Item..." aria-label="Nome do Item">
+            <input type="text" id="itemNameInput" placeholder="Nome do Item...">
             <button id="addButton">Adicionar à Lista</button>
         </div>
-        
-        <p id="loadingMessage" class="loading">Carregando lista...</p>
-        
-        <ul id="shoppingList" role="list">
-            </ul>
 
-        <hr> <h2>Itens Comprados (Histórico de Preços)</h2>
+        <ul id="shoppingList">
+        </ul>
+
+        <hr> <h2>Itens Comprados</h2>
         <p class="history-info">Marque para adicionar à lista de compras.</p>
         <div id="productHistoryArea">
         </div>
     </div>
 
-    <div id="buyModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div id="buyModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" aria-label="Fechar Modal">&times;</span>
-            <h2 id="modalTitle">Registro de Compra</h2>
+            <span class="close-button">&times;</span>
+            <h2>Registro de Compra</h2>
             <p id="modalItemName"></p>
-            
-            <label for="priceInput">Preço Pago (R$):</label> 
+            <label for="priceInput">Preço Pago (CAD$):</label> 
             <input type="number" id="priceInput" step="0.01">
             
             <label for="marketSelect">Mercado:</label>
             <select id="marketSelect">
             </select>
-            
+
             <div id="newMarketArea" style="display: none;">
                 <label for="newMarketInput">Nome do Novo Mercado:</label>
                 <input type="text" id="newMarketInput" placeholder="Ex: Mercado Novo">
             </div>
-
             <label><input type="checkbox" id="promoCheckbox"> Item em promoção?</label>
             
             <button id="confirmBuy">Confirmar</button>
