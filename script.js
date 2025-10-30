@@ -17,6 +17,9 @@ const productCache = new Map();
 // Variável para armazenar o estado mais recente dos itens na lista de compras
 let activeShoppingItems = new Set(); 
 
+// Variável para rastrear o mercado selecionado no modal
+let selectedMarket = null; 
+
 // =================================================================
 // Referências de Elementos (DOM)
 // =================================================================
@@ -29,7 +32,8 @@ const productHistoryUI = document.getElementById('productHistoryArea');
 const buyModal = document.getElementById('buyModal');
 const modalItemName = document.getElementById('modalItemName');
 const priceInput = document.getElementById('priceInput');
-const marketSelect = document.getElementById('marketSelect');
+// const marketSelect = document.getElementById('marketSelect'); // REMOVIDO
+const marketCheckboxesUI = document.getElementById('marketCheckboxes'); // NOVO
 const promoCheckbox = document.getElementById('promoCheckbox');
 const confirmBuyButton = document.getElementById('confirmBuy');
 const closeButton = document.querySelector('.close-button');
@@ -37,6 +41,7 @@ const closeButton = document.querySelector('.close-button');
 // Referências para o campo de novo mercado
 const newMarketArea = document.getElementById('newMarketArea');
 const newMarketInput = document.getElementById('newMarketInput');
+const addNewMarketBtn = document.getElementById('addNewMarketBtn'); // NOVO
 
 
 let currentItemId = null;
@@ -102,12 +107,15 @@ const closeBuyModal = () => {
     currentItemId = null;
     currentItemName = null;
     priceInput.value = '';
-    marketSelect.value = '';
+    // marketSelect.value = ''; // REMOVIDO
+    marketCheckboxesUI.innerHTML = ''; // NOVO: Limpa os checkboxes
+    selectedMarket = null; // NOVO
     promoCheckbox.checked = false;
     
     // Reseta o campo de novo mercado
     newMarketArea.style.display = 'none';
     newMarketInput.value = '';
+    addNewMarketBtn.style.display = 'block'; // NOVO: Garante que o botão 'Adicionar Novo Mercado' esteja visível novamente
 };
 
 // =================================================================
@@ -146,9 +154,11 @@ const openBuyModal = async (itemId, itemName) => {
     await loadMarketsToSelect();
 
     priceInput.value = '';
-    marketSelect.value = '';
+    // marketSelect.value = ''; // REMOVIDO
     promoCheckbox.checked = false;
     newMarketArea.style.display = 'none'; 
+    addNewMarketBtn.style.display = 'block'; // NOVO
+    selectedMarket = null; // NOVO
 
     buyModal.style.display = 'block';
 };
@@ -198,31 +208,63 @@ const addFromHistory = async (productName) => {
     }
 };
 
-// Carrega os mercados para o select do modal
+// Carrega os mercados e os renderiza como checkboxes (NOVA LÓGICA)
 const loadMarketsToSelect = async () => {
-    marketSelect.innerHTML = '<option value="">Selecione o Mercado</option>';
+    marketCheckboxesUI.innerHTML = ''; // Limpa antes de carregar
+    selectedMarket = null; // Reseta o estado
+    
     try {
         const q = query(MARKETS_COLLECTION, orderBy('nome'));
         const marketSnapshot = await getDocs(q);
 
-        const newMarketOption = document.createElement('option');
-        newMarketOption.value = '__NEW_MARKET__';
-        newMarketOption.textContent = '➕ Adicionar Novo Mercado...';
-        marketSelect.appendChild(newMarketOption);
-
         marketSnapshot.forEach((doc) => {
             const market = doc.data();
-            const option = document.createElement('option');
-            option.value = market.nome; 
-            option.textContent = capitalize(market.nome);
-            marketSelect.appendChild(option);
+            const marketName = market.nome;
+            const marketId = `market-${doc.id}`;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'market-checkbox-wrapper';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = marketId;
+            checkbox.value = marketName;
+            checkbox.className = 'market-checkbox-input';
+
+            const label = document.createElement('label');
+            label.htmlFor = marketId;
+            label.textContent = capitalize(marketName);
+            label.className = 'market-checkbox-label';
+
+            checkbox.addEventListener('change', (e) => {
+                // Lógica de rádio/seleção única para checkboxes
+                if (e.target.checked) {
+                    selectedMarket = marketName;
+                    // Desmarca todos os outros
+                    marketCheckboxesUI.querySelectorAll('.market-checkbox-input').forEach(cb => {
+                        if (cb !== checkbox) {
+                            cb.checked = false;
+                        }
+                    });
+                    // Oculta área de novo mercado (se estiver visível)
+                    newMarketArea.style.display = 'none';
+                    addNewMarketBtn.style.display = 'block';
+                    newMarketInput.value = ''; // Limpa o input
+                } else {
+                    selectedMarket = null; // Se desmarcar, zera o mercado
+                }
+            });
+
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(label);
+            marketCheckboxesUI.appendChild(wrapper);
         });
     } catch (error) {
         console.error("Erro ao carregar mercados:", error);
     }
 };
 
-// Lógica de Registro de Compra
+// Lógica de Registro de Compra (LÓGICA DE MERCADO AJUSTADA)
 const confirmBuyHandler = async () => {
     const pricePaidStr = priceInput.value;
     const isPromo = promoCheckbox.checked;
@@ -234,24 +276,28 @@ const confirmBuyHandler = async () => {
         return;
     }
 
-    let marketName = marketSelect.value;
+    // NOVA LÓGICA DE OBTENÇÃO DO MERCADO
+    let marketName = selectedMarket; 
+    let isNewMarket = false;
 
-    if (marketName === '__NEW_MARKET__') {
-        marketName = newMarketInput.value.trim();
+    // 1. Verifica se o campo de 'Novo Mercado' está visível e preenchido
+    if (newMarketArea.style.display === 'block') {
+        let newMarketInputTrimmed = newMarketInput.value.trim();
         
-        if (!marketName) {
+        if (!newMarketInputTrimmed) {
             alert("Por favor, insira o nome do novo mercado.");
             return;
         }
 
-        const normalizedMarketName = marketName.toLowerCase();
-
+        marketName = newMarketInputTrimmed.toLowerCase();
+        isNewMarket = true;
+        
+        // Tenta adicionar o novo mercado
         try {
             await addDoc(MARKETS_COLLECTION, {
-                nome: normalizedMarketName,
+                nome: marketName,
                 timestamp: serverTimestamp(),
             });
-            marketName = normalizedMarketName; 
             
         } catch (error) {
             console.error("Erro ao adicionar novo mercado:", error);
@@ -259,10 +305,11 @@ const confirmBuyHandler = async () => {
             return; 
         }
 
-    } else if (!marketName) {
-        alert("Por favor, selecione um mercado.");
+    } else if (!marketName) { // 2. Se não é novo mercado, e nenhum foi selecionado
+        alert("Por favor, selecione ou adicione um mercado.");
         return;
     }
+    // FIM DA NOVA LÓGICA DE OBTENÇÃO DO MERCADO
 
     try {
         // 1. Encontrar o DocRef e atualizar/criar o Registro do Produto
@@ -521,15 +568,17 @@ if (!window.isShoppingListInitialized) {
         }
     });
 
-    // Listener para mostrar/esconder o campo de novo mercado
-    marketSelect.addEventListener('change', () => {
-        if (marketSelect.value === '__NEW_MARKET__') {
-            newMarketArea.style.display = 'block';
-            newMarketInput.focus();
-        } else {
-            newMarketArea.style.display = 'none';
-            newMarketInput.value = '';
-        }
+    // Listener para o botão de 'Adicionar Novo Mercado' (NOVA LÓGICA)
+    addNewMarketBtn.addEventListener('click', () => {
+        newMarketArea.style.display = 'block';
+        addNewMarketBtn.style.display = 'none'; // Esconde o botão após clicar
+        newMarketInput.focus();
+        
+        // Desmarca qualquer checkbox selecionado ao focar no novo mercado
+        marketCheckboxesUI.querySelectorAll('.market-checkbox-input').forEach(cb => {
+            cb.checked = false;
+        });
+        selectedMarket = null;
     });
 
     // Ordem de inicialização:

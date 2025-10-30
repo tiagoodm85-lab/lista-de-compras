@@ -209,7 +209,8 @@ h2 {
 }
 
 .modal-content input[type="number"],
-.modal-content select {
+.modal-content select,
+.modal-content input[type="text"] { /* Adicionado input[type="text"] para o novo mercado */
     width: 100%;
     padding: 10px;
     margin-top: 5px;
@@ -218,7 +219,7 @@ h2 {
     box-sizing: border-box;
 }
 
-.modal-content button {
+.modal-content button#confirmBuy { /* Especificando o botão de confirmar */
     margin-top: 20px;
     padding: 12px 20px;
     background-color: #007bff;
@@ -244,6 +245,70 @@ h2 {
     text-decoration: none;
     cursor: pointer;
 }
+
+/* NOVO: Estilos para o seletor de mercado com Checkboxes */
+#marketCheckboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px; /* Adicionado padding */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-top: 5px;
+    box-sizing: border-box;
+}
+
+.market-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    cursor: pointer;
+    transition: background-color 0.2s, border 0.2s;
+    user-select: none;
+    border: 1px solid transparent; /* Para o efeito de hover/seleção */
+}
+
+.market-checkbox-wrapper:has(input:checked) {
+    background-color: #d1e7dd;
+    border-color: #0f5132;
+}
+
+.market-checkbox-wrapper:hover {
+    background-color: #e9ecef;
+}
+
+.market-checkbox-input {
+    margin-right: 8px;
+    width: auto !important; /* Anula a largura 100% da regra global */
+}
+
+.market-checkbox-label {
+    margin: 0;
+    font-weight: normal;
+    display: inline;
+    cursor: pointer;
+}
+
+/* Estilo para o botão auxiliar de adicionar novo mercado */
+.aux-market-btn {
+    background-color: #6c757d;
+    color: white;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    width: 100%;
+    transition: background-color 0.2s;
+    margin-top: 5px; /* Adicionado */
+}
+
+.aux-market-btn:hover {
+    background-color: #5a6268;
+}
+
 
 /* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
 @media (max-width: 600px) {
@@ -307,6 +372,17 @@ h2 {
         margin: 5% auto; /* Reduz a margem superior */
         width: 90%;
         padding: 15px; /* Padding um pouco menor para economizar espaço */
+    }
+
+    /* NOVO: Quebra de coluna para o seletor de mercado em telas pequenas */
+    #marketCheckboxes {
+        flex-direction: column;
+        gap: 5px; /* Menor espaço entre os itens */
+        padding: 10px;
+    }
+    
+    .market-checkbox-wrapper {
+        width: 100%;
     }
 }
 
