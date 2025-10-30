@@ -1,4 +1,4 @@
-// script.js (Versão Limpa e Comentada com Correção de Duplicação)
+// script.js (Versão Limpa, Comentada e com Correção de Duplicação e ORDENAÇÃO POR MELHOR MERCADO REGULAR)
 
 // 1. IMPORTAÇÕES DO FIREBASE (Define as referências e funções de acesso ao banco)
 import {
@@ -195,6 +195,7 @@ const addItem = async () => {
     const itemName = itemNameInput.value.trim();
     if (!itemName) return;
 
+    // Normaliza o nome para minúsculas para comparação consistente
     const normalizedName = itemName.toLowerCase();
 
     // === LÓGICA DE PREVENÇÃO DE DUPLICAÇÃO ===
@@ -207,6 +208,7 @@ const addItem = async () => {
     // =========================================
 
     try {
+        // Adiciona o item ao Firestore
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: normalizedName,
             timestamp: serverTimestamp(),
@@ -322,6 +324,7 @@ const confirmBuyHandler = async () => {
             return;
         }
 
+        // Normaliza o nome do novo mercado
         marketName = newMarketInputTrimmed.toLowerCase();
         
         // Adiciona o novo mercado ao Firestore
@@ -498,73 +501,77 @@ const setupProductHistoryListener = () => {
 
 /**
  * Configura o listener principal do Firestore para a Lista de Compras Atual (SHOPPING_LIST_COLLECTION).
+ * Agora ordena os itens por MELHOR MERCADO REGULAR no lado do cliente.
  */
 const setupShoppingListListener = () => {
     if (unsubscribeShoppingList) {
         unsubscribeShoppingList(); // Limpa o listener anterior, se houver
     }
 
-    const q = query(SHOPPING_LIST_COLLECTION, orderBy('timestamp', 'desc'));
+    // Consulta sem ordenação no Firestore, a ordenação será feita no cliente.
+    const q = query(SHOPPING_LIST_COLLECTION); 
 
     unsubscribeShoppingList = onSnapshot(q, (snapshot) => {
 
-        // 1. ATUALIZA O ESTADO DOS ITENS ATIVOS
-        // Esta é a chave para o anti-duplicação: mantém o Set atualizado com o que está no Firestore
+        const shoppingItems = [];
         const currentActiveItems = new Set();
-        snapshot.docs.forEach(doc => currentActiveItems.add(doc.data().nome));
+        
+        // 1. COLETAR DADOS E ATUALIZAR ESTADO
+        snapshot.docs.forEach(doc => {
+            const item = { ...doc.data(), id: doc.id };
+            shoppingItems.push(item);
+            currentActiveItems.add(item.nome);
+        });
         activeShoppingItems = currentActiveItems; // Variável global 'activeShoppingItems' atualizada
 
         // 2. RE-RENDERIZA O HISTÓRICO (para desabilitar/habilitar corretamente)
         renderProductHistory(activeShoppingItems);
 
-        // 3. PROCESSA MUDANÇAS NA LISTA DE COMPRAS
-        snapshot.docChanges().forEach((change) => {
-            const itemId = change.doc.id;
-            const item = change.doc.data();
+        // 3. ORDENAÇÃO POR MELHOR MERCADO REGULAR (CLIENT-SIDE)
+        shoppingItems.sort((a, b) => {
+            // Pega o melhor mercado regular do cache, usa 'zzz' para itens novos ou sem histórico irem para o final
+            const marketA = productCache.get(a.nome)?.melhorMercadoRegular || 'zzz'; 
+            const marketB = productCache.get(b.nome)?.melhorMercadoRegular || 'zzz';
+            
+            // Ordem Primária: Mercado (Alfabética)
+            if (marketA < marketB) return -1;
+            if (marketA > marketB) return 1;
+
+            // Ordem Secundária: Nome do Item (Alfabética, para estabilidade)
+            if (a.nome < b.nome) return -1;
+            if (a.nome > b.nome) return 1;
+
+            return 0; // Itens idênticos mantêm a ordem
+        });
+
+
+        // 4. RENDERIZA A LISTA ORDENADA (Limpa e redesenha)
+        shoppingListUI.innerHTML = ''; // Limpa a lista antes de renderizar
+        
+        shoppingItems.forEach((item) => {
+            const itemId = item.id;
             const itemName = item.nome;
             const itemNameDisplay = capitalize(itemName);
             
             const productData = productCache.get(itemName);
             const bestPriceHint = formatPriceHint(productData);
 
-            if (change.type === 'added' || change.type === 'modified') {
-                let existingLi = document.getElementById(`item-${itemId}`);
+            const li = document.createElement('li');
+            li.id = `item-${itemId}`;
+            li.className = 'shopping-item';
+            li.innerHTML = `
+                <div class="item-info">
+                    <span class="item-name">${itemNameDisplay}</span>
+                    <span class="price-hint">${bestPriceHint}</span>
+                </div>
+                <button class="delete-button" onclick="deleteItem('${itemId}')">Remover / Comprei</button>
+                <button class="buy-button" onclick="markAsBought('${itemId}', '${itemName}')">Ajustar</button>
+            `;
 
-                const newLiHtml = `
-                    <div class="item-info">
-                        <span class="item-name">${itemNameDisplay}</span>
-                        <span class="price-hint">${bestPriceHint}</span>
-                    </div>
-                    <button class="delete-button" onclick="deleteItem('${itemId}')">Remover / Comprei</button>
-                    <button class="buy-button" onclick="markAsBought('${itemId}', '${itemName}')">Ajustar</button>
-                `;
-
-                if (change.type === 'added') {
-                    const li = document.createElement('li');
-                    li.id = `item-${itemId}`;
-                    li.className = 'shopping-item';
-                    li.innerHTML = newLiHtml;
-
-                    // Adiciona o novo item no topo
-                    if (shoppingListUI.firstChild) {
-                        shoppingListUI.insertBefore(li, shoppingListUI.firstChild);
-                    } else {
-                        shoppingListUI.appendChild(li);
-                    }
-                } else if (change.type === 'modified' && existingLi) {
-                    existingLi.innerHTML = newLiHtml;
-                }
-            }
-
-            if (change.type === 'removed') {
-                const existingLi = document.getElementById(`item-${itemId}`);
-                if (existingLi) {
-                    existingLi.remove();
-                }
-            }
+            shoppingListUI.appendChild(li);
         });
 
-        if (snapshot.docs.length === 0) {
+        if (shoppingItems.length === 0) {
             shoppingListUI.innerHTML = '';
         }
 
