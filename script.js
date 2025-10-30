@@ -1,4 +1,4 @@
-// script.js (Versão Final: Opção de filtro "Sem Mercado" removida)
+// script.js (Versão Final: Detalhes do Item/Quantidade)
 
 // 1. IMPORTAÇÕES DO FIREBASE
 import {
@@ -24,6 +24,8 @@ let currentFilterMarket = 'TODOS';
 // Referências da Interface (DOM)
 const shoppingListUI = document.getElementById('shoppingList');
 const itemNameInput = document.getElementById('itemNameInput');
+// NOVO: Referência para o input de Detalhes ao Adicionar
+const itemDetailsInput = document.getElementById('itemDetailsInput');
 const addButton = document.getElementById('addButton');
 const productHistoryUI = document.getElementById('productHistoryArea');
 const marketFilterAreaUI = document.getElementById('marketFilterArea'); // Área de filtro
@@ -32,7 +34,7 @@ const marketFilterAreaUI = document.getElementById('marketFilterArea'); // Área
 const buyModal = document.getElementById('buyModal');
 const modalItemName = document.getElementById('modalItemName');
 const priceInput = document.getElementById('priceInput');
-const marketCheckboxesUI = document.getElementById('marketCheckboxes'); // NOVO: Container dos checkboxes
+const marketCheckboxesUI = document.getElementById('marketCheckboxes'); 
 const promoCheckbox = document.getElementById('promoCheckbox');
 const confirmBuyButton = document.getElementById('confirmBuy');
 const closeButton = document.querySelector('.close-button');
@@ -143,6 +145,22 @@ const closeBuyModal = () => {
 // =================================================================
 
 /**
+ * Atualiza o campo 'detalhes' de um item na lista de compras.
+ * @param {string} itemId - ID do item na lista de compras.
+ * @param {string} newDetails - O novo valor para os detalhes.
+ */
+const updateItemDetails = async (itemId, newDetails) => {
+    try {
+        const itemRef = doc(SHOPPING_LIST_COLLECTION, itemId);
+        await updateDoc(itemRef, {
+            detalhes: newDetails.trim()
+        });
+    } catch (error) {
+        console.error("Erro ao atualizar detalhes do item:", error);
+    }
+};
+
+/**
  * Deleta um item do histórico de produtos (coleção PRODUCTS_COLLECTION).
  * @param {string} productName - Nome do produto a ser deletado.
  */
@@ -208,6 +226,9 @@ const deleteItem = async (itemId) => {
  */
 const addItem = async () => {
     const itemName = itemNameInput.value.trim();
+    // NOVO: Pega o valor dos detalhes/quantidade
+    const itemDetails = itemDetailsInput.value.trim(); 
+
     if (!itemName) return;
 
     const normalizedName = itemName.toLowerCase();
@@ -215,15 +236,18 @@ const addItem = async () => {
     if (activeShoppingItems.has(normalizedName)) {
         alert(`O item '${capitalize(normalizedName)}' já está na sua lista de compras.`);
         itemNameInput.value = '';
+        itemDetailsInput.value = ''; // Limpa o campo de detalhes
         return;
     }
 
     try {
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: normalizedName,
+            detalhes: itemDetails, // NOVO CAMPO SALVO
             timestamp: serverTimestamp(),
         });
         itemNameInput.value = '';
+        itemDetailsInput.value = ''; // Limpa
     } catch (error) {
         console.error("Erro ao adicionar item:", error);
         alert("Não foi possível adicionar o item à lista.");
@@ -238,6 +262,7 @@ const addFromHistory = async (productName) => {
     try {
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: productName,
+            detalhes: '', // Adiciona o campo vazio ao adicionar do histórico
             timestamp: serverTimestamp(),
         });
         return true;
@@ -402,23 +427,16 @@ const renderMarketFilters = () => {
     marketFilterAreaUI.innerHTML = '';
     
     // 1. Opção 'Todos'
-    // A chave 'SEM_MERCADO' NÃO é mais adicionada aqui.
     let allMarkets = ['TODOS', ...marketListCache]; 
     
     allMarkets.forEach(market => {
-        // Ignora a chave de filtro 'SEM_MERCADO' na interface
+        // Ignora a chave de filtro 'SEM_MERCADO' na interface (conforme solicitado)
         if (market === 'SEM_MERCADO') return;
 
         const tag = document.createElement('div');
         tag.className = 'filter-market-tag';
         tag.textContent = capitalize(market).replace('_', ' '); // Ex: 'Super C'
         tag.dataset.market = market; // Armazena o valor do filtro
-
-        // A classe 'no-market' é mantida apenas para a tag de filtro 'SEM_MERCADO' 
-        // caso a lista fosse reintroduzida, mas ela não é renderizada.
-        if (market === 'SEM_MERCADO') {
-            tag.classList.add('no-market');
-        }
 
         if (market === currentFilterMarket) {
             tag.classList.add('active');
@@ -581,7 +599,7 @@ const setupShoppingListListener = () => {
         });
         activeShoppingItems = currentActiveItems;
 
-        // 1. FILTRAGEM (LÓGICA CORRETA)
+        // 1. FILTRAGEM
         if (currentFilterMarket !== 'TODOS') {
              shoppingItems = shoppingItems.filter(item => {
                 const bestMarket = getBestRegularMarket(item.nome);
@@ -589,8 +607,7 @@ const setupShoppingListListener = () => {
                 // Inclui o item se:
                 // a) O melhor mercado regular for o filtro ATUALMENTE selecionado.
                 // OU
-                // b) O item for 'SEM_MERCADO' (item novo/sem histórico).
-                //    (Esta é a regra que garante que itens novos SEMPRE apareçam, exceto no filtro 'TODOS' que é o padrão).
+                // b) O item for 'SEM_MERCADO' (item novo/sem histórico). (Garantindo que itens novos apareçam em todos os filtros)
                 const isCurrentMarket = bestMarket === currentFilterMarket;
                 const isNoMarketItem = bestMarket === 'SEM_MERCADO';
 
@@ -652,14 +669,33 @@ const setupShoppingListListener = () => {
                      li.classList.add('no-market-item');
                 }
 
+                // NOVO: Campo de Detalhes
+                const itemDetails = item.detalhes || '';
+
                 li.innerHTML = `
                     <div class="item-info">
                         <span class="item-name">${itemNameDisplay}</span>
+                        <span class="item-details-wrapper">
+                            <input type="text" class="item-details-input" value="${itemDetails}" placeholder="Detalhes (2kg, 3un)">
+                        </span>
                         <span class="price-hint">${bestPriceHint}</span>
                     </div>
                     <button class="delete-button" onclick="deleteItem('${itemId}')">Remover / Comprei</button>
                     <button class="buy-button" onclick="markAsBought('${itemId}', '${itemName}')">Ajustar</button>
                 `;
+                
+                // Listener para atualizar o Firestore ao perder o foco (blur) ou pressionar Enter
+                const detailsInput = li.querySelector('.item-details-input');
+                
+                detailsInput.addEventListener('blur', (e) => {
+                    updateItemDetails(itemId, e.target.value);
+                });
+                detailsInput.addEventListener('keyup', (e) => {
+                     if (e.key === 'Enter') {
+                        e.target.blur(); // Perde o foco e dispara o blur listener
+                    }
+                });
+
 
                 shoppingListUI.appendChild(li);
             });
@@ -683,9 +719,15 @@ if (!window.isShoppingListInitialized) {
 
     // Listeners para Adicionar Item
     addButton.addEventListener('click', addItem);
-    itemNameInput.addEventListener('keyup', (event) => {
+    // Adiciona listener para o Enter no input de detalhes
+    itemDetailsInput.addEventListener('keyup', (event) => {
         if (event.key === 'Enter') addItem();
     });
+    // Adiciona listener para o Enter no input de nome do item
+    itemNameInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') itemDetailsInput.focus(); // Move o foco
+    });
+
 
     // Listeners do Modal
     confirmBuyButton.addEventListener('click', confirmBuyHandler);

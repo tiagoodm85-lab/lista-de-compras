@@ -464,3 +464,35 @@ h2 {
         width: 100%;
     }
 }
+/* --- ESTILOS DA LISTA PRINCIPAL (ADICIONAL) --- */
+.item-details-wrapper {
+    display: block; /* Garante que fique em uma nova linha, se necessário */
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.item-details-input {
+    width: 150px; /* Largura fixa para economizar espaço */
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #555;
+    background-color: #fafafa;
+}
+
+.item-details-input:focus {
+    border-color: #007bff;
+    background-color: #fff;
+    outline: none;
+}
+
+/* OTIMIZAÇÃO PARA CELULARES */
+@media (max-width: 600px) {
+    /* ... outros estilos media query ... */
+    
+    .item-details-input {
+        width: 100%; /* Ocupa a largura total em telas pequenas */
+        max-width: none;
+    }
+}
