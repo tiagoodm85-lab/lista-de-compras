@@ -13,7 +13,6 @@
 
         <div class="input-area">
             <input type="text" id="itemNameInput" placeholder="Nome do Item...">
-            <input type="text" id="itemDetailsInput" placeholder="Detalhes (Ex: 2kg, 3 un.)">
             <button id="addButton">Adicionar à Lista</button>
         </div>
 
@@ -35,6 +34,9 @@
             <span class="close-button">&times;</span>
             <h2>Registro de Compra</h2>
             <p id="modalItemName"></p>
+            
+            <label for="purchaseDetailsInput">Detalhes (Ex: 2kg, 3 un.):</label> 
+            <input type="text" id="purchaseDetailsInput" placeholder="Detalhes da compra (ex: 2kg, 3 un.)">
             
             <label for="priceInput">Preço Pago (CAD$):</label> 
             <input type="number" id="priceInput" step="0.01">
