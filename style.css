@@ -38,6 +38,7 @@ h2 {
     margin-bottom: 15px;
 }
 
+/* --- ESTILOS DA ÁREA DE INPUT --- */
 .input-area {
     display: flex;
     margin-bottom: 20px;
@@ -66,7 +67,7 @@ h2 {
     background-color: #218838;
 }
 
-/* LISTA PRINCIPAL */
+/* --- ESTILOS DA LISTA PRINCIPAL --- */
 #shoppingList {
     list-style: none;
     padding: 0;
@@ -79,7 +80,6 @@ h2 {
     align-items: center;
     padding: 15px 0;
     border-bottom: 1px solid #eee;
-    /* Ajuste para quebra de linha no mobile */
 }
 
 .shopping-item:last-child {
@@ -89,21 +89,20 @@ h2 {
 .item-info {
     flex-grow: 1;
     margin-right: 15px;
-    /* Permite que o nome e preço ocupem 100% da largura em layout de coluna */
 }
 
 .item-name {
     font-size: 1.1em;
     font-weight: bold;
-    display: block; /* Garante que o nome ocupe a linha */
+    display: block; 
 }
 
 .price-hint {
-    display: block; /* CRUCIAL para que o <br> funcione e as dicas fiquem em linhas separadas */
+    display: block; 
     font-size: 0.9em;
     color: #6c757d;
     margin-top: 5px;
-    line-height: 1.4; /* Melhora a leitura quando tem duas linhas */
+    line-height: 1.4; 
 }
 
 .buy-button, .delete-button {
@@ -114,7 +113,7 @@ h2 {
     font-size: 0.9em;
     margin-left: 10px;
     transition: background-color 0.2s;
-    flex-shrink: 0;
+    flex-shrink: 0; /* Impede o encolhimento dos botões */
 }
 
 .delete-button {
@@ -135,12 +134,18 @@ h2 {
     background-color: #0056b3;
 }
 
-/* HISTÓRICO DE PRODUTOS */
+/* --- ESTILOS DO HISTÓRICO DE PRODUTOS --- */
 #productHistoryArea {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 20px;
+}
+
+.product-tag-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
 }
 
 .product-tag {
@@ -153,32 +158,53 @@ h2 {
     transition: background-color 0.2s;
     display: flex;
     align-items: center;
+    flex-grow: 1; 
 }
 
 .product-tag:hover:not(.disabled-tag) {
     background-color: #dee2e6;
 }
 
+/* Esconde o checkbox real e ajusta o span para alinhamento */
 .product-tag input[type="checkbox"] {
     margin-right: 5px;
-    pointer-events: all; /* Garante que o checkbox é clicável */
+    pointer-events: all; 
     cursor: pointer;
 }
 
-/* Estilo para itens que já estão na lista */
+.product-tag span {
+    margin-left: 5px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Estilo para itens que já estão na lista (desabilitado) */
 .disabled-tag {
     opacity: 0.7;
-    background-color: #d1e7dd; /* Cor suave para indicar ativo */
+    background-color: #d1e7dd; 
     color: #0f5132;
     cursor: default;
 }
 
-.disabled-tag input[type="checkbox"] {
-    /* O JS já desabilita o checkbox, mas esta regra reforça a aparência */
-    opacity: 0.8;
+.delete-history-btn {
+    background: none;
+    border: none;
+    color: #dc3545; 
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 5px;
+    margin-left: 10px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    line-height: 1;
 }
 
-/* LÓGICA DO MODAL */
+.delete-history-btn:hover {
+    opacity: 1;
+    color: #c82333;
+}
+
+/* --- ESTILOS DO MODAL --- */
 .modal {
     display: none; 
     position: fixed; 
@@ -193,10 +219,10 @@ h2 {
 
 .modal-content {
     background-color: #fefefe;
-    margin: 15% auto; /* Ajuste inicial no PC */
+    margin: 15% auto;
     padding: 20px;
     border: 1px solid #888;
-    width: 80%; /* Largura padrão no PC */
+    width: 80%; 
     max-width: 400px;
     border-radius: 8px;
     position: relative;
@@ -209,8 +235,7 @@ h2 {
 }
 
 .modal-content input[type="number"],
-.modal-content select,
-.modal-content input[type="text"] { /* Adicionado input[type="text"] para o novo mercado */
+.modal-content input[type="text"] { 
     width: 100%;
     padding: 10px;
     margin-top: 5px;
@@ -219,7 +244,7 @@ h2 {
     box-sizing: border-box;
 }
 
-.modal-content button#confirmBuy { /* Especificando o botão de confirmar */
+.modal-content button#confirmBuy { 
     margin-top: 20px;
     padding: 12px 20px;
     background-color: #007bff;
@@ -246,12 +271,12 @@ h2 {
     cursor: pointer;
 }
 
-/* NOVO: Estilos para o seletor de mercado com Checkboxes */
+/* --- NOVOS ESTILOS PARA CHECKBOXES DE MERCADO --- */
 #marketCheckboxes {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    padding: 10px; /* Adicionado padding */
+    padding: 10px; 
     border: 1px solid #ccc;
     border-radius: 4px;
     margin-top: 5px;
@@ -267,9 +292,10 @@ h2 {
     cursor: pointer;
     transition: background-color 0.2s, border 0.2s;
     user-select: none;
-    border: 1px solid transparent; /* Para o efeito de hover/seleção */
+    border: 1px solid transparent; 
 }
 
+/* Estilo para o mercado que está CHECADO/Selecionado */
 .market-checkbox-wrapper:has(input:checked) {
     background-color: #d1e7dd;
     border-color: #0f5132;
@@ -281,7 +307,7 @@ h2 {
 
 .market-checkbox-input {
     margin-right: 8px;
-    width: auto !important; /* Anula a largura 100% da regra global */
+    width: auto !important; 
 }
 
 .market-checkbox-label {
@@ -302,7 +328,7 @@ h2 {
     font-size: 0.9em;
     width: 100%;
     transition: background-color 0.2s;
-    margin-top: 5px; /* Adicionado */
+    margin-top: 5px; 
 }
 
 .aux-market-btn:hover {
@@ -310,7 +336,7 @@ h2 {
 }
 
 
-/* OTIMIZAÇÃO PARA CELULARES (Responsividade) */
+/* --- OTIMIZAÇÃO PARA CELULARES (Responsividade) --- */
 @media (max-width: 600px) {
     .container {
         padding: 15px;
@@ -318,19 +344,12 @@ h2 {
     
     h1 {
         font-size: 1.5em;
-        margin-bottom: 20px;
     }
     
+    /* Empilha input e botão no mobile */
     .input-area {
-        flex-direction: column; /* Empilha input e botão */
+        flex-direction: column; 
         gap: 10px;
-    }
-    
-    .input-area input[type="text"],
-    .input-area button {
-        width: 100%;
-        font-size: 1em; 
-        padding: 12px;
     }
 
     /* Ajustes na lista principal */
@@ -341,19 +360,6 @@ h2 {
         gap: 8px; 
     }
 
-    .item-info {
-        width: 100%;
-    }
-
-    .item-name {
-        font-size: 1.1em;
-    }
-    
-    .price-hint {
-        font-size: 0.85em;
-        padding-top: 3px;
-    }
-
     .buy-button, .delete-button {
         width: 100%; /* Botões ocupam a largura total no mobile */
         margin-left: 0;
@@ -361,63 +367,20 @@ h2 {
         padding: 10px;
     }
     
-    /* Ajuste para botões na mesma linha se a tela permitir */
-    .shopping-item > button:first-of-type {
-        margin-top: 0;
-    }
-
     .modal-content {
-        /* Garante que o modal apareça mais alto na tela, 
-           minimizando problemas com o teclado virtual. */
-        margin: 5% auto; /* Reduz a margem superior */
+        margin: 5% auto; 
         width: 90%;
-        padding: 15px; /* Padding um pouco menor para economizar espaço */
+        padding: 15px; 
     }
 
-    /* NOVO: Quebra de coluna para o seletor de mercado em telas pequenas */
+    /* Quebra de coluna para o seletor de mercado em telas pequenas */
     #marketCheckboxes {
         flex-direction: column;
-        gap: 5px; /* Menor espaço entre os itens */
+        gap: 5px; 
         padding: 10px;
     }
     
     .market-checkbox-wrapper {
         width: 100%;
     }
-}
-
-.product-tag-wrapper {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px; /* Espaço entre os itens do histórico */
-}
-
-.product-tag-wrapper .product-tag {
-    flex-grow: 1; /* Permite que o label ocupe o máximo de espaço */
-    /* Mantém os estilos existentes do .product-tag aqui */
-}
-
-.delete-history-btn {
-    background: none;
-    border: none;
-    color: #dc3545; /* Cor vermelha para indicar exclusão */
-    cursor: pointer;
-    font-size: 1.1em;
-    padding: 5px;
-    margin-left: 10px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-    line-height: 1; /* Alinha o ícone */
-}
-
-.delete-history-btn:hover {
-    opacity: 1;
-    color: #c82333;
-}
-
-/* Garante que o checkbox e o texto do label fiquem alinhados */
-.product-tag span {
-    margin-left: 5px;
-    display: inline-block;
-    vertical-align: middle;
 }
