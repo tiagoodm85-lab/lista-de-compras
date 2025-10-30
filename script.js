@@ -1,11 +1,11 @@
-// script.js (Versão Limpa e Comentada)
+// script.js (Versão Limpa e Comentada com Correção de Duplicação)
 
 // 1. IMPORTAÇÕES DO FIREBASE (Define as referências e funções de acesso ao banco)
 import {
     PRODUCTS_COLLECTION, SHOPPING_LIST_COLLECTION, MARKETS_COLLECTION,
     doc, onSnapshot, query, orderBy, where, limit,
     addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs
-} from './firebase.js'; //
+} from './firebase.js';
 
 // =================================================================
 // 2. VARIÁVEIS DE ESTADO E REFERÊNCIAS DOM
@@ -14,7 +14,7 @@ import {
 // Cache para armazenar o histórico de produtos e evitar múltiplas chamadas ao Firestore
 const productCache = new Map();
 
-// Variável para armazenar o estado mais recente dos itens na lista de compras (para controle do histórico)
+// Variável para armazenar o estado mais recente dos itens na lista de compras (para controle do histórico e duplicação)
 let activeShoppingItems = new Set();
 
 // Variável para rastrear o mercado selecionado no modal (novo controle para os checkboxes)
@@ -189,13 +189,22 @@ const deleteItem = async (itemId) => {
 };
 
 /**
- * Adiciona um item à lista de compras principal.
+ * Adiciona um item à lista de compras principal, prevenindo duplicação.
  */
 const addItem = async () => {
     const itemName = itemNameInput.value.trim();
     if (!itemName) return;
 
     const normalizedName = itemName.toLowerCase();
+
+    // === LÓGICA DE PREVENÇÃO DE DUPLICAÇÃO ===
+    // Verifica se o item (pelo nome normalizado) já está na lista ativa (activeShoppingItems é um Set)
+    if (activeShoppingItems.has(normalizedName)) {
+        alert(`O item '${capitalize(normalizedName)}' já está na sua lista de compras.`);
+        itemNameInput.value = '';
+        return; // Sai da função, impedindo a adição ao Firestore
+    }
+    // =========================================
 
     try {
         await addDoc(SHOPPING_LIST_COLLECTION, {
@@ -214,6 +223,7 @@ const addItem = async () => {
  * @param {string} productName - Nome do produto a ser adicionado.
  */
 const addFromHistory = async (productName) => {
+    // A verificação de duplicação para histórico é feita em 'renderProductHistory'
     try {
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: productName,
@@ -499,9 +509,10 @@ const setupShoppingListListener = () => {
     unsubscribeShoppingList = onSnapshot(q, (snapshot) => {
 
         // 1. ATUALIZA O ESTADO DOS ITENS ATIVOS
+        // Esta é a chave para o anti-duplicação: mantém o Set atualizado com o que está no Firestore
         const currentActiveItems = new Set();
         snapshot.docs.forEach(doc => currentActiveItems.add(doc.data().nome));
-        activeShoppingItems = currentActiveItems; // Variável global atualizada
+        activeShoppingItems = currentActiveItems; // Variável global 'activeShoppingItems' atualizada
 
         // 2. RE-RENDERIZA O HISTÓRICO (para desabilitar/habilitar corretamente)
         renderProductHistory(activeShoppingItems);
@@ -589,7 +600,7 @@ if (!window.isShoppingListInitialized) {
         }
     });
 
-    // Listener para o botão de 'Adicionar Novo Mercado' (NOVA LÓGICA DE INTERFACE)
+    // Listener para o botão de 'Adicionar Novo Mercado' (Lógica de Interface)
     addNewMarketBtn.addEventListener('click', () => {
         newMarketArea.style.display = 'block';
         addNewMarketBtn.style.display = 'none'; // Esconde o botão após clicar
