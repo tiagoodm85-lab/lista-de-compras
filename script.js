@@ -1,6 +1,6 @@
-// script.js (Versão Limpa, Comentada e com Correção de Duplicação e ORDENAÇÃO POR MELHOR MERCADO REGULAR)
+// script.js (Versão Final: Filtro de Mercado, Ordenação por Preço Regular e Referências Corrigidas)
 
-// 1. IMPORTAÇÕES DO FIREBASE (Define as referências e funções de acesso ao banco)
+// 1. IMPORTAÇÕES DO FIREBASE
 import {
     PRODUCTS_COLLECTION, SHOPPING_LIST_COLLECTION, MARKETS_COLLECTION,
     doc, onSnapshot, query, orderBy, where, limit,
@@ -11,38 +11,40 @@ import {
 // 2. VARIÁVEIS DE ESTADO E REFERÊNCIAS DOM
 // =================================================================
 
-// Cache para armazenar o histórico de produtos e evitar múltiplas chamadas ao Firestore
 const productCache = new Map();
+let marketListCache = []; // Cache para armazenar a lista de todos os mercados
 
-// Variável para armazenar o estado mais recente dos itens na lista de compras (para controle do histórico e duplicação)
+// Variáveis de estado
 let activeShoppingItems = new Set();
+let selectedMarket = null; // Mercado selecionado no MODAL de compra
 
-// Variável para rastrear o mercado selecionado no modal (novo controle para os checkboxes)
-let selectedMarket = null;
+// Mercado selecionado para FILTRAR a lista. 'TODOS' é a chave para não aplicar filtro.
+let currentFilterMarket = 'TODOS'; 
 
 // Referências da Interface (DOM)
 const shoppingListUI = document.getElementById('shoppingList');
 const itemNameInput = document.getElementById('itemNameInput');
 const addButton = document.getElementById('addButton');
 const productHistoryUI = document.getElementById('productHistoryArea');
+const marketFilterAreaUI = document.getElementById('marketFilterArea'); // Área de filtro
 
 // Referências do Modal de Compra
 const buyModal = document.getElementById('buyModal');
 const modalItemName = document.getElementById('modalItemName');
 const priceInput = document.getElementById('priceInput');
-const marketCheckboxesUI = document.getElementById('marketCheckboxes'); // Container dos novos checkboxes
+const marketCheckboxesUI = document.getElementById('marketCheckboxes'); // NOVO: Container dos checkboxes
 const promoCheckbox = document.getElementById('promoCheckbox');
 const confirmBuyButton = document.getElementById('confirmBuy');
 const closeButton = document.querySelector('.close-button');
-
-// Referências para o campo de novo mercado
 const newMarketArea = document.getElementById('newMarketArea');
 const newMarketInput = document.getElementById('newMarketInput');
-const addNewMarketBtn = document.getElementById('addNewMarketBtn'); // Botão para revelar o campo
+const addNewMarketBtn = document.getElementById('addNewMarketBtn'); 
 
-let currentItemId = null; // ID do item sendo comprado
-let currentItemName = null; // Nome do item sendo comprado
-let unsubscribeShoppingList = null; // Função para desativar o listener do Firestore
+let currentItemId = null;
+let currentItemName = null;
+let unsubscribeShoppingList = null;
+let unsubscribeMarkets = null;
+
 
 // =================================================================
 // 3. FUNÇÕES AUXILIARES
@@ -55,6 +57,17 @@ let unsubscribeShoppingList = null; // Função para desativar o listener do Fir
 const capitalize = (s) => {
     if (!s) return '';
     return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+/**
+ * Retorna o nome do melhor mercado regular de um item.
+ * @param {string} itemName - Nome do item.
+ * @returns {string} - Nome do mercado ou 'SEM_MERCADO' (para itens novos).
+ */
+const getBestRegularMarket = (itemName) => {
+    const productData = productCache.get(itemName);
+    // Retorna o nome do mercado em minúsculas, ou uma chave para itens novos
+    return productData?.melhorMercadoRegular || 'SEM_MERCADO'; 
 };
 
 /**
@@ -100,7 +113,12 @@ const formatPriceHint = (productData) => {
         bestPriceHint += promoHint;
     }
 
-    return bestPriceHint || 'Novo item. Sem histórico de preço.';
+    // Adiciona um aviso se não houver histórico de preço regular
+    if (!regularHint) {
+        bestPriceHint += (bestPriceHint ? '<br>' : '') + 'Sem histórico regular.';
+    }
+
+    return bestPriceHint;
 };
 
 /**
@@ -111,14 +129,13 @@ const closeBuyModal = () => {
     currentItemId = null;
     currentItemName = null;
     priceInput.value = '';
-    marketCheckboxesUI.innerHTML = ''; // Limpa os checkboxes
-    selectedMarket = null; // Reseta o mercado selecionado
+    marketCheckboxesUI.innerHTML = '';
+    selectedMarket = null;
     promoCheckbox.checked = false;
     
-    // Reseta e oculta o campo de novo mercado
     newMarketArea.style.display = 'none';
     newMarketInput.value = '';
-    addNewMarketBtn.style.display = 'block'; // Mostra o botão 'Adicionar Novo Mercado'
+    addNewMarketBtn.style.display = 'block';
 };
 
 // =================================================================
@@ -135,7 +152,6 @@ const deleteProductFromHistory = async (productName) => {
     }
 
     try {
-        // Busca a referência do documento pelo nome
         const q = query(PRODUCTS_COLLECTION, where('nome', '==', productName), limit(1));
         const itemSnapshot = await getDocs(q);
 
@@ -164,7 +180,6 @@ const openBuyModal = async (itemId, itemName) => {
 
     await loadMarketsToSelect(); // Carrega os mercados como checkboxes
 
-    // Reseta os campos do modal
     priceInput.value = '';
     promoCheckbox.checked = false;
     newMarketArea.style.display = 'none';
@@ -195,20 +210,15 @@ const addItem = async () => {
     const itemName = itemNameInput.value.trim();
     if (!itemName) return;
 
-    // Normaliza o nome para minúsculas para comparação consistente
     const normalizedName = itemName.toLowerCase();
 
-    // === LÓGICA DE PREVENÇÃO DE DUPLICAÇÃO ===
-    // Verifica se o item (pelo nome normalizado) já está na lista ativa (activeShoppingItems é um Set)
     if (activeShoppingItems.has(normalizedName)) {
         alert(`O item '${capitalize(normalizedName)}' já está na sua lista de compras.`);
         itemNameInput.value = '';
-        return; // Sai da função, impedindo a adição ao Firestore
+        return;
     }
-    // =========================================
 
     try {
-        // Adiciona o item ao Firestore
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: normalizedName,
             timestamp: serverTimestamp(),
@@ -225,17 +235,16 @@ const addItem = async () => {
  * @param {string} productName - Nome do produto a ser adicionado.
  */
 const addFromHistory = async (productName) => {
-    // A verificação de duplicação para histórico é feita em 'renderProductHistory'
     try {
         await addDoc(SHOPPING_LIST_COLLECTION, {
             nome: productName,
             timestamp: serverTimestamp(),
         });
-        return true; // Sucesso
+        return true;
     } catch (error) {
         console.error("Erro ao adicionar do histórico:", error);
         alert("Não foi possível adicionar o item do histórico. Verifique sua conexão.");
-        return false; // Falha
+        return false;
     }
 };
 
@@ -243,61 +252,48 @@ const addFromHistory = async (productName) => {
  * Carrega os mercados do Firestore e os renderiza como checkboxes de seleção única.
  */
 const loadMarketsToSelect = async () => {
-    marketCheckboxesUI.innerHTML = ''; // Limpa o container
-    selectedMarket = null; // Reseta o estado de seleção
+    marketCheckboxesUI.innerHTML = ''; 
+    selectedMarket = null; 
     
-    try {
-        const q = query(MARKETS_COLLECTION, orderBy('nome'));
-        const marketSnapshot = await getDocs(q);
+    // Usa o cache de mercados para renderizar (marketListCache é populado em setupMarketsListener)
+    marketListCache.forEach((marketName) => {
+        const marketId = `market-${marketName.replace(/\s/g, '-')}`;
 
-        marketSnapshot.forEach((doc) => {
-            const market = doc.data();
-            const marketName = market.nome;
-            const marketId = `market-${doc.id}`;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'market-checkbox-wrapper';
 
-            // Cria o wrapper para estilos CSS
-            const wrapper = document.createElement('div');
-            wrapper.className = 'market-checkbox-wrapper';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = marketId;
+        checkbox.value = marketName;
+        checkbox.className = 'market-checkbox-input';
 
-            // Cria o elemento input (checkbox)
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = marketId;
-            checkbox.value = marketName;
-            checkbox.className = 'market-checkbox-input';
+        const label = document.createElement('label');
+        label.htmlFor = marketId;
+        label.textContent = capitalize(marketName);
+        label.className = 'market-checkbox-label';
 
-            // Cria o label
-            const label = document.createElement('label');
-            label.htmlFor = marketId;
-            label.textContent = capitalize(marketName);
-            label.className = 'market-checkbox-label';
-
-            // Lógica de seleção única (Radio-like Checkbox)
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    selectedMarket = marketName;
-                    // Desmarca todos os outros checkboxes
-                    marketCheckboxesUI.querySelectorAll('.market-checkbox-input').forEach(cb => {
-                        if (cb !== checkbox) {
-                            cb.checked = false;
-                        }
-                    });
-                    // Oculta área de novo mercado (se o usuário selecionou um existente)
-                    newMarketArea.style.display = 'none';
-                    addNewMarketBtn.style.display = 'block';
-                    newMarketInput.value = '';
-                } else {
-                    selectedMarket = null; // Se desmarcar, zera o mercado
-                }
-            });
-
-            wrapper.appendChild(checkbox);
-            wrapper.appendChild(label);
-            marketCheckboxesUI.appendChild(wrapper);
+        // Lógica de seleção única
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                selectedMarket = marketName;
+                marketCheckboxesUI.querySelectorAll('.market-checkbox-input').forEach(cb => {
+                    if (cb !== checkbox) {
+                        cb.checked = false;
+                    }
+                });
+                newMarketArea.style.display = 'none';
+                addNewMarketBtn.style.display = 'block';
+                newMarketInput.value = '';
+            } else {
+                selectedMarket = null;
+            }
         });
-    } catch (error) {
-        console.error("Erro ao carregar mercados:", error);
-    }
+
+        wrapper.appendChild(checkbox);
+        wrapper.appendChild(label);
+        marketCheckboxesUI.appendChild(wrapper);
+    });
 };
 
 /**
@@ -324,11 +320,10 @@ const confirmBuyHandler = async () => {
             return;
         }
 
-        // Normaliza o nome do novo mercado
         marketName = newMarketInputTrimmed.toLowerCase();
         
-        // Adiciona o novo mercado ao Firestore
         try {
+            // Adiciona o novo mercado e o registra no cache (o listener se encarrega da UI)
             await addDoc(MARKETS_COLLECTION, {
                 nome: marketName,
                 timestamp: serverTimestamp(),
@@ -401,6 +396,94 @@ const confirmBuyHandler = async () => {
 // =================================================================
 
 /**
+ * Renderiza os botões/tags de filtro de mercado.
+ */
+const renderMarketFilters = () => {
+    marketFilterAreaUI.innerHTML = '';
+    
+    // 1. Opção 'Todos'
+    let allMarkets = ['TODOS', ...marketListCache]; 
+    
+    // Adiciona uma opção especial para itens sem histórico (sem mercado vinculado)
+    // Usamos 'SEM_MERCADO' como uma chave de filtro, capitalizada para exibição
+    allMarkets.push('SEM_MERCADO');
+
+    allMarkets.forEach(market => {
+        const tag = document.createElement('div');
+        tag.className = 'filter-market-tag';
+        tag.textContent = capitalize(market).replace('_', ' '); // Ex: 'Sem Mercado'
+        tag.dataset.market = market; // Armazena o valor do filtro
+
+        if (market === 'SEM_MERCADO') {
+            tag.classList.add('no-market');
+        }
+
+        if (market === currentFilterMarket) {
+            tag.classList.add('active');
+        }
+
+        tag.addEventListener('click', () => {
+            if (currentFilterMarket !== market) {
+                currentFilterMarket = market;
+                // Dispara a re-renderização da lista de compras
+                setupShoppingListListener(); 
+            }
+            // Re-renderiza os próprios filtros para atualizar o estado 'active'
+            renderMarketFilters();
+        });
+
+        marketFilterAreaUI.appendChild(tag);
+    });
+};
+
+/**
+ * Configura o listener do Firestore para os Mercados (MARKETS_COLLECTION).
+ */
+const setupMarketsListener = () => {
+    if (unsubscribeMarkets) {
+        unsubscribeMarkets();
+    }
+
+    const q = query(MARKETS_COLLECTION, orderBy('nome'));
+    
+    unsubscribeMarkets = onSnapshot(q, (snapshot) => {
+        marketListCache = [];
+        snapshot.forEach(doc => {
+            marketListCache.push(doc.data().nome);
+        });
+        
+        // Dispara a renderização dos filtros assim que os mercados forem carregados
+        renderMarketFilters(); 
+
+    }, (error) => {
+        console.error("Erro no Listener de Mercados:", error);
+    });
+};
+
+/**
+ * Configura o listener do Firestore para o Histórico de Produtos (PRODUCTS_COLLECTION).
+ */
+const setupProductHistoryListener = () => {
+    const q = query(PRODUCTS_COLLECTION, orderBy('nome'));
+    
+    onSnapshot(q, (snapshot) => {
+        productCache.clear();
+        snapshot.forEach(doc => {
+            const product = { ...doc.data(), id: doc.id };
+            productCache.set(product.nome, product);
+        });
+        
+        renderProductHistory(activeShoppingItems); 
+        setupShoppingListListener(); // Força a re-renderização da lista principal com novos preços
+        renderMarketFilters(); // Garante que a opção 'SEM_MERCADO' ou mercados recém-usados sejam atualizados
+        
+
+    }, (error) => {
+        console.error("Erro no Listener do Histórico de Produtos:", error);
+    });
+};
+
+/**
  * Renderiza os itens do histórico de produtos na UI.
  * @param {Set<string>} activeItems - Nomes dos itens que estão atualmente na lista de compras.
  */
@@ -408,14 +491,12 @@ const renderProductHistory = (activeItems) => {
     
     productHistoryUI.innerHTML = '';
     
-    // Ordena os produtos do cache alfabeticamente
     const sortedProducts = Array.from(productCache.values()).sort((a, b) => a.nome.localeCompare(b.nome));
 
     sortedProducts.forEach((product) => {
         const productName = product.nome;
         const isItemActive = activeItems.has(productName);
 
-        // Cria a tag e o label com o checkbox
         const tag = document.createElement('div');
         tag.className = 'product-tag-wrapper';
         
@@ -435,21 +516,19 @@ const renderProductHistory = (activeItems) => {
             <span>${displayName}</span>
         `;
         
-        // Listener para adicionar o item do histórico à lista de compras
         label.addEventListener('click', async (e) => {
             if (e.target.closest('.delete-history-btn')) {
-                return; // Ignora o clique se for no botão de delete
+                return;
             }
 
-            e.preventDefault(); // Impede a alternância imediata do checkbox
+            e.preventDefault(); 
 
             const checkbox = label.querySelector('input[type="checkbox"]');
             
             if (checkbox.disabled || checkbox.checked) {
-                return; // Se já está na lista ou marcado, ignora
+                return;
             }
             
-            // Inicia o feedback visual e chama a função assíncrona
             checkbox.checked = true;
             checkbox.disabled = true;
             
@@ -459,10 +538,8 @@ const renderProductHistory = (activeItems) => {
                 checkbox.checked = false;
                 checkbox.disabled = false;
             }
-            // A atualização do Firestore fará a re-renderização completa via onSnapshot
         });
         
-        // Botão para excluir o item do histórico de preços
         const deleteButton = document.createElement('button');
         deleteButton.className = 'delete-history-btn';
         deleteButton.innerHTML = '🗑️';
@@ -478,101 +555,97 @@ const renderProductHistory = (activeItems) => {
     });
 };
 
-/**
- * Configura o listener do Firestore para o Histórico de Produtos (PRODUCTS_COLLECTION).
- */
-const setupProductHistoryListener = () => {
-    const q = query(PRODUCTS_COLLECTION, orderBy('nome'));
-    
-    onSnapshot(q, (snapshot) => {
-        productCache.clear();
-        snapshot.forEach(doc => {
-            const product = { ...doc.data(), id: doc.id };
-            productCache.set(product.nome, product);
-        });
-        
-        renderProductHistory(activeShoppingItems); // Renderiza o histórico com os itens ativos atuais
-
-    }, (error) => {
-        console.error("Erro no Listener do Histórico de Produtos:", error);
-    });
-};
-
 
 /**
  * Configura o listener principal do Firestore para a Lista de Compras Atual (SHOPPING_LIST_COLLECTION).
- * Agora ordena os itens por MELHOR MERCADO REGULAR no lado do cliente.
+ * Aplica o filtro e ordena no lado do cliente.
  */
 const setupShoppingListListener = () => {
     if (unsubscribeShoppingList) {
-        unsubscribeShoppingList(); // Limpa o listener anterior, se houver
+        unsubscribeShoppingList(); 
     }
 
-    // Consulta sem ordenação no Firestore, a ordenação será feita no cliente.
     const q = query(SHOPPING_LIST_COLLECTION); 
 
     unsubscribeShoppingList = onSnapshot(q, (snapshot) => {
 
-        const shoppingItems = [];
+        let shoppingItems = [];
         const currentActiveItems = new Set();
         
-        // 1. COLETAR DADOS E ATUALIZAR ESTADO
         snapshot.docs.forEach(doc => {
             const item = { ...doc.data(), id: doc.id };
             shoppingItems.push(item);
             currentActiveItems.add(item.nome);
         });
-        activeShoppingItems = currentActiveItems; // Variável global 'activeShoppingItems' atualizada
+        activeShoppingItems = currentActiveItems;
 
-        // 2. RE-RENDERIZA O HISTÓRICO (para desabilitar/habilitar corretamente)
-        renderProductHistory(activeShoppingItems);
+        // 1. FILTRAGEM (USANDO currentFilterMarket)
+        if (currentFilterMarket !== 'TODOS') {
+             shoppingItems = shoppingItems.filter(item => {
+                const bestMarket = getBestRegularMarket(item.nome);
+                
+                // Retorna TRUE se o melhor mercado regular for o mercado selecionado
+                // Isso inclui itens novos/sem histórico quando 'SEM_MERCADO' está ativo.
+                return bestMarket === currentFilterMarket;
+             });
+        }
 
-        // 3. ORDENAÇÃO POR MELHOR MERCADO REGULAR (CLIENT-SIDE)
+        // 2. ORDENAÇÃO POR MELHOR MERCADO REGULAR
         shoppingItems.sort((a, b) => {
-            // Pega o melhor mercado regular do cache, usa 'zzz' para itens novos ou sem histórico irem para o final
-            const marketA = productCache.get(a.nome)?.melhorMercadoRegular || 'zzz'; 
-            const marketB = productCache.get(b.nome)?.melhorMercadoRegular || 'zzz';
+            // Usa 'zzz' para garantir que "SEM_MERCADO" (Z-A) venha depois dos mercados com nomes
+            const marketA = getBestRegularMarket(a.nome) === 'SEM_MERCADO' ? 'zzz' : getBestRegularMarket(a.nome);
+            const marketB = getBestRegularMarket(b.nome) === 'SEM_MERCADO' ? 'zzz' : getBestRegularMarket(b.nome);
             
             // Ordem Primária: Mercado (Alfabética)
             if (marketA < marketB) return -1;
             if (marketA > marketB) return 1;
 
-            // Ordem Secundária: Nome do Item (Alfabética, para estabilidade)
+            // Ordem Secundária: Nome do Item (Alfabética)
             if (a.nome < b.nome) return -1;
             if (a.nome > b.nome) return 1;
 
-            return 0; // Itens idênticos mantêm a ordem
+            return 0;
         });
 
 
-        // 4. RENDERIZA A LISTA ORDENADA (Limpa e redesenha)
-        shoppingListUI.innerHTML = ''; // Limpa a lista antes de renderizar
+        // 3. RENDERIZAÇÃO DA LISTA FILTRADA E ORDENADA
+        shoppingListUI.innerHTML = '';
         
-        shoppingItems.forEach((item) => {
-            const itemId = item.id;
-            const itemName = item.nome;
-            const itemNameDisplay = capitalize(itemName);
-            
-            const productData = productCache.get(itemName);
-            const bestPriceHint = formatPriceHint(productData);
-
-            const li = document.createElement('li');
-            li.id = `item-${itemId}`;
-            li.className = 'shopping-item';
-            li.innerHTML = `
-                <div class="item-info">
-                    <span class="item-name">${itemNameDisplay}</span>
-                    <span class="price-hint">${bestPriceHint}</span>
-                </div>
-                <button class="delete-button" onclick="deleteItem('${itemId}')">Remover / Comprei</button>
-                <button class="buy-button" onclick="markAsBought('${itemId}', '${itemName}')">Ajustar</button>
-            `;
-
-            shoppingListUI.appendChild(li);
-        });
-
         if (shoppingItems.length === 0) {
-            shoppingListUI.innerHTML = '';
+            const message = document.createElement('li');
+            message.className = 'shopping-item';
+            
+            if (currentFilterMarket === 'TODOS') {
+                message.innerHTML = `<div class="item-info"><span class="item-name">🎉 Lista vazia! Que tal adicionar algo?</span></div>`;
+            } else if (currentFilterMarket === 'SEM_MERCADO') {
+                message.innerHTML = `<div class="item-info"><span class="item-name">✅ Nenhum item novo. Tente outro filtro.</span></div>`;
+            } else {
+                 message.innerHTML = `<div class="item-info"><span class="item-name">✅ Nada para comprar no ${capitalize(currentFilterMarket)}.</span></div>`;
+            }
+            shoppingListUI.appendChild(message);
+        } else {
+             shoppingItems.forEach((item) => {
+                const itemId = item.id;
+                const itemName = item.nome;
+                const itemNameDisplay = capitalize(itemName);
+                
+                const productData = productCache.get(itemName);
+                const bestPriceHint = formatPriceHint(productData);
+
+                const li = document.createElement('li');
+                li.id = `item-${itemId}`;
+                li.className = 'shopping-item';
+                li.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-name">${itemNameDisplay}</span>
+                        <span class="price-hint">${bestPriceHint}</span>
+                    </div>
+                    <button class="delete-button" onclick="deleteItem('${itemId}')">Remover / Comprei</button>
+                    <button class="buy-button" onclick="markAsBought('${itemId}', '${itemName}')">Ajustar</button>
+                `;
+
+                shoppingListUI.appendChild(li);
+            });
         }
 
     }, (error) => {
@@ -589,7 +662,6 @@ const setupShoppingListListener = () => {
 window.markAsBought = openBuyModal;
 window.deleteItem = deleteItem;
 
-// Garante que os listeners sejam configurados apenas uma vez
 if (!window.isShoppingListInitialized) {
 
     // Listeners para Adicionar Item
@@ -607,13 +679,12 @@ if (!window.isShoppingListInitialized) {
         }
     });
 
-    // Listener para o botão de 'Adicionar Novo Mercado' (Lógica de Interface)
+    // Listener para o botão de 'Adicionar Novo Mercado' 
     addNewMarketBtn.addEventListener('click', () => {
         newMarketArea.style.display = 'block';
-        addNewMarketBtn.style.display = 'none'; // Esconde o botão após clicar
+        addNewMarketBtn.style.display = 'none';
         newMarketInput.focus();
         
-        // Limpa a seleção de qualquer checkbox existente ao focar no novo campo
         marketCheckboxesUI.querySelectorAll('.market-checkbox-input').forEach(cb => {
             cb.checked = false;
         });
@@ -621,8 +692,9 @@ if (!window.isShoppingListInitialized) {
     });
 
     // Inicialização dos Listeners do Firestore
-    setupProductHistoryListener();
-    setupShoppingListListener();
+    setupMarketsListener(); // Inicializa os mercados (e os filtros)
+    setupProductHistoryListener(); // Inicializa o cache de produtos e a lista de compras
+    
     window.isShoppingListInitialized = true;
 
 } else {
